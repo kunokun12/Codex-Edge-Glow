@@ -71,9 +71,9 @@ class MainActivity : Activity() {
         val root = column().apply { setPadding(dp(22), dp(30), dp(22), dp(36)) }
         scroll.addView(root)
         root.addView(text("CODEX  /  ANDROID", 12f, accent, true))
-        root.addView(text("Edge Glow", 32f, primary, true).apply { setPadding(0, dp(7), 0, dp(5)) })
-        root.addView(text("A subtle signal when Codex is using your phone.", 14f, muted))
-        val control = section(root, "Session control", "Test the glow without starting a Codex task")
+        root.addView(text("Codex Companion", 32f, primary, true).apply { setPadding(0, dp(7), 0, dp(5)) })
+        root.addView(text("Visible automation status + native accessibility actions in one app.", 14f, muted))
+        val control = section(root, "Session control", "Preview the activity indicator without starting an automation task")
         control.addView(button("Start preview", Color.rgb(34, 112, 197)) { startGlow() })
         control.addView(View(this).apply { minimumHeight = dp(10) })
         control.addView(button("Stop preview", Color.rgb(53, 65, 84)) {
@@ -100,7 +100,31 @@ class MainActivity : Activity() {
             setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean("bottom_glow", checked).apply() }
         })
         appearance.addView(bottomRow)
-        val access = section(root, "Permissions & status", "System access needed for the edge overlay")
+        val automation = section(root, "Native actions", "Exact accessibility targets only. Android MCP sends one authorized action at a time.")
+        automation.addView(text("Allow automation only in these package IDs (comma-separated). Benchmark is enabled by default. Add other apps only when you intend Codex to control them; avoid banking, payments, and sensitive accounts.", 12f, muted))
+        val allowPrefs = getSharedPreferences("automation_settings", MODE_PRIVATE)
+        val allowedPackages = EditText(this).apply {
+            setText(allowPrefs.getString("allowed_packages", "dev.androidroute.benchmark"))
+            setSingleLine(false)
+            minLines = 2
+            setTextColor(primary)
+            setHintTextColor(muted)
+            textSize = 13f
+            hint = "dev.androidroute.benchmark"
+        }
+        automation.addView(allowedPackages, LinearLayout.LayoutParams(-1, -2))
+        automation.addView(button("Save allowed apps", Color.rgb(34, 112, 197)) {
+            val candidates = allowedPackages.text.toString().split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            val pattern = Regex("^[a-zA-Z][a-zA-Z0-9_]*(?:\\\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
+            if (candidates.isEmpty() || candidates.size > 20 || candidates.any { !pattern.matches(it) || it == packageName }) {
+                Toast.makeText(this, "Enter 1–20 valid app package IDs", Toast.LENGTH_LONG).show()
+            } else {
+                allowPrefs.edit().putString("allowed_packages", candidates.distinct().joinToString(",")).apply()
+                Toast.makeText(this, "Native action allowlist saved", Toast.LENGTH_SHORT).show()
+            }
+        })
+        automation.addView(text("Native clicks require an active Codex session, connected accessibility service, an exact unique match, and an ADB-authorized caller. The app reports dispatch acceptance; Android MCP must verify the destination.", 12f, muted))
+        val access = section(root, "Permissions & status", "Overlay and accessibility permissions for one companion app")
         access.addView(button("Manage display-over-apps", Color.rgb(53, 65, 84)) {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         })
@@ -109,10 +133,10 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
         })
         access.addView(View(this).apply { minimumHeight = dp(10) })
-        access.addView(button("Enable fast screen access", Color.rgb(53, 65, 84)) {
+        access.addView(button("Enable Codex accessibility", Color.rgb(53, 65, 84)) {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         })
-        access.addView(text("Optional: enable Codex Edge Glow in Accessibility settings to speed up UI targeting. Screen labels are stored privately on-device.", 12f, muted).apply {
+        access.addView(text("Enable Codex Companion in Accessibility settings for native node actions and UI snapshots. Screen labels remain stored privately on-device.", 12f, muted).apply {
             setPadding(0, dp(10), 0, 0)
         })
         root.addView(text("Live Alerts are managed by ColorOS. An ongoing notification remains available as fallback. The glow is touch-through.", 12f, muted).apply {
