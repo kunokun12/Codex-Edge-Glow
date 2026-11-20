@@ -13,6 +13,7 @@ class GlowService : Service() {
     private var window: WindowManager? = null
     private var glow: GlowView? = null
     private var expiresAt = 0L
+    private var currentStatus = "Ready for Android actions"
     private val timeout = 120_000L
     private val watchdog = object : Runnable {
         override fun run() {
@@ -23,7 +24,7 @@ class GlowService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!Settings.canDrawOverlays(this)) { stopSelf(); return START_NOT_STICKY }
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        val status = intent?.getStringExtra("status")?.replace(Regex("[\\r\\n]"), " ")?.take(72)\n        if (!status.isNullOrBlank()) currentStatus = status\n        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channel = "edge_glow_active"
         nm.createNotificationChannel(NotificationChannel(channel, "Codex automation", NotificationManager.IMPORTANCE_LOW))
         val stop = PendingIntent.getBroadcast(this, 43,
@@ -38,7 +39,7 @@ class GlowService : Service() {
         val notification = Notification.Builder(this, channel)
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Codex is using your phone")
-            .setContentText("Android automation session active")
+            .setContentText(currentStatus)\n            .setStyle(Notification.BigTextStyle().bigText(currentStatus))
             .setCategory(Notification.CATEGORY_SERVICE)
             .setOngoing(true).setOnlyAlertOnce(true).setExtras(extras)
             .addAction(Notification.Action.Builder(null, "Stop session", stop).build())
