@@ -9,7 +9,7 @@ This APK upgrades the previous Edge Glow application **in place** using the exis
 - Action: `com.codexedge.glow.NATIVE_CLICK`
 - Permission: `android.permission.DUMP` (ordinary apps cannot send)
 - Extras: `request_id`, `target_package`, `selector_type`, `selector_value`
-- Selector types: `text`, `description`, `resourceId`; matches must be exact and unique.
+- Selector types: `text`, `description`, `resourceId`, or `label` (exact text OR exact content-description); matches must be exact and resolve to one distinct clickable node. Refusal includes counts for text, description, resourceId, and unique actionable controls without leaking their labels.
 - Result: `adb shell run-as com.codexedge.glow cat files/native-action-result.json`
 - Report: `DISPATCH_ACCEPTED_UNVERIFIED`, `DISPATCH_REJECTED`, `DISPATCH_UNCERTAIN`, `REFUSED`.
 - Result fields: `schema=2`, `requestId`, `operation=NATIVE_CLICK`, `status`, `targetPackage`, `selectorType`, `coordinateTapUsed=false`, `destinationVerified=false`, `reason`.
