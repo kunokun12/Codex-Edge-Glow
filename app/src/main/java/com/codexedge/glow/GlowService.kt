@@ -198,6 +198,17 @@ class GlowService : Service() {
         if (SessionLease.isActive(this)) SessionLease.stop(this, "service_destroyed")
         handler.removeCallbacksAndMessages(null)
         removeGlowWindows()
+        // Explicitly remove the foreground notification. Android may retain
+        // ongoing/promoted foreground notifications after service destruction
+        // if the service only stops itself, leaving a misleading active badge.
+        // This cleanup never touches another package's notifications.
+        if (Build.VERSION.SDK_INT >= 24) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancel(42)
         super.onDestroy()
     }
     private class GlowView(
