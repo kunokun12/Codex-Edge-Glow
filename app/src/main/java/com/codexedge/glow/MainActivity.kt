@@ -115,7 +115,7 @@ class MainActivity : Activity() {
         automation.addView(allowedPackages, LinearLayout.LayoutParams(-1, -2))
         automation.addView(button("Save allowed apps", Color.rgb(34, 112, 197)) {
             val candidates = allowedPackages.text.toString().split(',').map { it.trim() }.filter { it.isNotEmpty() }
-            val pattern = Regex("^[a-zA-Z][a-zA-Z0-9_]*(?:\\\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
+            val pattern = Regex("^[a-zA-Z][a-zA-Z0-9_]*(?:\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
             if (candidates.isEmpty() || candidates.size > 20 || candidates.any { !pattern.matches(it) || it == packageName }) {
                 Toast.makeText(this, "Enter 1–20 valid app package IDs", Toast.LENGTH_LONG).show()
             } else {
