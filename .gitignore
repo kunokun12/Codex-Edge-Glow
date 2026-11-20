@@ -1,0 +1,5 @@
+# Never commit Android signing credentials
+*.p12
+*.jks
+*.keystore
+**/password.txt
