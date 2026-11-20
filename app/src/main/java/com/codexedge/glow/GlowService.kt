@@ -11,7 +11,7 @@ import kotlin.math.sin
 class GlowService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var window: WindowManager? = null
-    private var glow: GlowView? = null
+    private val glowViews = mutableListOf<GlowView>()
     private var expiresAt = 0L
     private var currentStatus = "Ready for Android actions"
     // Prefer the destination when known; otherwise show the action.
@@ -39,7 +39,7 @@ class GlowService : Service() {
     private val idleDelay = 5_000L
     private val idleIndicator = object : Runnable {
         override fun run() {
-            if (glow != null && SystemClock.elapsedRealtime() - lastActionAt >= idleDelay) {
+            if (glowViews.isNotEmpty() && SystemClock.elapsedRealtime() - lastActionAt >= idleDelay) {
                 currentStatus = "Waiting for next Codex action"
                 updateNotification()
             }
@@ -64,27 +64,84 @@ class GlowService : Service() {
         }
         updateNotification()
         expiresAt = SystemClock.elapsedRealtime() + timeout
-        if (glow == null) {
-            window = getSystemService(WINDOW_SERVICE) as WindowManager
-            glow = GlowView(this)
-            val lp = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT)
-            lp.gravity = Gravity.TOP or Gravity.START
-            if (Build.VERSION.SDK_INT >= 28) lp.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            try { window?.addView(glow, lp) } catch (_: Exception) { stopSelf(); return START_NOT_STICKY }
+        if (glowViews.isEmpty()) {
+            if (!showEdgeOnlyGlow()) { stopSelf(); return START_NOT_STICKY }
             handler.post(watchdog)
         }
         return START_NOT_STICKY
     }
+    /**
+     * Use four non-overlapping narrow windows instead of a single full-screen
+     * TYPE_APPLICATION_OVERLAY. Their local canvases render slices of the same
+     * original full-display glow. No view ever covers the central app area.
+     */
+    private fun showEdgeOnlyGlow(): Boolean {
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val size = Point()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealSize(size)
+        if (size.x <= 0 || size.y <= 0) return false
+        val density = resources.displayMetrics.density
+        // The appearance slider allows up to 100dp; keep an additional 2dp
+        // for anti-aliasing, without creating any full-screen window.
+        val band = (102f * density).toInt()
+            .coerceAtLeast(1).coerceAtMost((minOf(size.x, size.y) / 3).coerceAtLeast(1))
+        val middle = (size.y - 2 * band).coerceAtLeast(0)
+        val segments = listOf(
+            intArrayOf(0, 0, size.x, band),
+            intArrayOf(0, size.y - band, size.x, band),
+            intArrayOf(0, band, band, middle),
+            intArrayOf(size.x - band, band, band, middle)
+        )
+        window = wm
+        try {
+            for (part in segments) {
+                if (part[2] <= 0 || part[3] <= 0) continue
+                val view = GlowView(this, size.x, size.y, part[0], part[1])
+                val lp = WindowManager.LayoutParams(
+                    part[2], part[3],
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    PixelFormat.TRANSLUCENT
+                )
+                lp.gravity = Gravity.TOP or Gravity.START
+                lp.x = part[0]
+                lp.y = part[1]
+                // Android's touch-through limit for untrusted overlays is 0.8
+                // on relevant versions. Segments do not overlap and stay below it.
+                lp.alpha = 0.78f
+                if (Build.VERSION.SDK_INT >= 28) lp.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                wm.addView(view, lp)
+                glowViews.add(view)
+            }
+        } catch (_: Exception) {
+            removeGlowWindows()
+            return false
+        }
+        return glowViews.isNotEmpty()
+    }
+
+    private fun removeGlowWindows() {
+        val wm = window
+        for (view in glowViews) {
+            try { wm?.removeView(view) } catch (_: Exception) { }
+        }
+        glowViews.clear()
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (glowViews.isNotEmpty()) {
+            removeGlowWindows()
+            if (!showEdgeOnlyGlow()) stopSelf()
+        }
+    }
+
     private fun updateNotification() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channel = "edge_glow_active"
@@ -111,17 +168,24 @@ class GlowService : Service() {
     }
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-        glow?.let { try { window?.removeView(it) } catch (_: Exception) {} }
-        glow = null
+        removeGlowWindows()
         super.onDestroy()
     }
-    private class GlowView(context: Context) : View(context) {
+    private class GlowView(
+        context: Context,
+        private val displayWidth: Int,
+        private val displayHeight: Int,
+        private val offsetX: Int,
+        private val offsetY: Int
+    ) : View(context) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val started = SystemClock.uptimeMillis()
         private val prefs = context.getSharedPreferences("glow_settings", Context.MODE_PRIVATE)
         override fun onDraw(canvas: Canvas) {
-            val w = width.toFloat(); val h = height.toFloat()
+            val w = displayWidth.toFloat(); val h = displayHeight.toFloat()
             if (w <= 0f || h <= 0f) return
+            val scene = canvas.save()
+            canvas.translate(-offsetX.toFloat(), -offsetY.toFloat())
             val d = resources.displayMetrics.density
             val strength = prefs.getInt("intensity", 65) / 100f
             val spread = prefs.getInt("spread", 52) * d
@@ -182,6 +246,7 @@ class GlowService : Service() {
             drawGradient(0f, 0f, 0f, spread, RectF(0f, 0f, w, spread), cyan)
             if (bottom) drawGradient(0f, h, 0f, h - spread,
                 RectF(0f, h - spread, w, h), if (purple) violet else cyan)
+            canvas.restoreToCount(scene)
             postInvalidateDelayed(50)
         }
     }
