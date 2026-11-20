@@ -18,6 +18,10 @@ import java.io.File
  * Requires the debug build and explicit Accessibility permission.
  */
 class ScreenAccessService : AccessibilityService() {
+    companion object {
+        @Volatile var current: ScreenAccessService? = null
+            private set
+    }
     private var lastWrite = 0L
     private val handler = Handler(Looper.getMainLooper())
     private val refreshRequest by lazy { File(filesDir, "ui-refresh-request") }
@@ -85,11 +89,13 @@ class ScreenAccessService : AccessibilityService() {
     }
     override fun onServiceConnected() {
         super.onServiceConnected()
+        current = this
         handler.removeCallbacks(refreshPoll)
         handler.post(refreshPoll)
         captureSnapshot()
     }
     override fun onDestroy() {
+        if (current === this) current = null
         handler.removeCallbacks(refreshPoll)
         super.onDestroy()
     }
