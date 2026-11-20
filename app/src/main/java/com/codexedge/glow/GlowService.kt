@@ -98,29 +98,44 @@ class GlowService : Service() {
                 canvas.drawRect(rect, paint)
                 paint.shader = null
             }
-            // Draw horizontal gradient strips with a smooth fade toward the gesture bar.
-            val steps = 64
-            val sideEnd = if (bottom) h else h * 0.92f
-            for (i in 0 until steps) {
-                val y0 = sideEnd * i / steps
-                val y1 = sideEnd * (i + 1) / steps + 1f
-                val progress = y0 / sideEnd
-                val fade = if (progress < 0.65f) 1f else
-                    ((1f - progress) / 0.35f).coerceIn(0f, 1f)
-                val alpha = (a * fade * fade).toInt().coerceIn(0, 255)
-                val c = if (purple && progress > 0.55f) violet else cyan
-                fun strip(x0: Float, x1: Float, rect: RectF) {
-                    paint.shader = LinearGradient(x0, 0f, x1, 0f,
-                        intArrayOf(Color.argb(alpha, Color.red(c), Color.green(c), Color.blue(c)),
-                            Color.argb((alpha * .3f).toInt(), Color.red(c), Color.green(c), Color.blue(c)),
-                            Color.TRANSPARENT),
-                        floatArrayOf(0f, .3f, 1f), Shader.TileMode.CLAMP)
-                    canvas.drawRect(rect, paint)
+            // Continuous side gradients eliminate the seams produced by strip drawing.
+            // Keep full brightness down the sides, fading only near the gesture bar.
+            val sideEnd = if (bottom) h else h * 0.985f
+            val sideAlpha = (225f * strength * breath).toInt().coerceIn(0, 255)
+            val fadeStart = if (bottom) 1f else 0.87f
+            fun sideGlow(left: Boolean) {
+                val leftX = if (left) 0f else w - spread
+                val rightX = if (left) spread else w
+                val checkpoint = canvas.saveLayer(leftX, 0f, rightX, sideEnd, null)
+                val c = cyan
+                paint.shader = LinearGradient(
+                    if (left) 0f else w, 0f,
+                    if (left) spread else w - spread, 0f,
+                    intArrayOf(
+                        Color.argb(sideAlpha, Color.red(c), Color.green(c), Color.blue(c)),
+                        Color.argb((sideAlpha * .42f).toInt(), Color.red(c), Color.green(c), Color.blue(c)),
+                        Color.TRANSPARENT
+                    ),
+                    floatArrayOf(0f, .38f, 1f), Shader.TileMode.CLAMP
+                )
+                canvas.drawRect(leftX, 0f, rightX, sideEnd, paint)
+                paint.shader = null
+                // One continuous alpha mask: no horizontal seams or strip boundaries.
+                if (!bottom) {
+                    paint.shader = LinearGradient(
+                        0f, 0f, 0f, sideEnd,
+                        intArrayOf(Color.WHITE, Color.WHITE, Color.TRANSPARENT),
+                        floatArrayOf(0f, fadeStart, 1f), Shader.TileMode.CLAMP
+                    )
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+                    canvas.drawRect(leftX, 0f, rightX, sideEnd, paint)
+                    paint.xfermode = null
+                    paint.shader = null
                 }
-                strip(0f, spread, RectF(0f, y0, spread, y1))
-                strip(w, w - spread, RectF(w - spread, y0, w, y1))
+                canvas.restoreToCount(checkpoint)
             }
-            paint.shader = null
+            sideGlow(true)
+            sideGlow(false)
             drawGradient(0f, 0f, 0f, spread, RectF(0f, 0f, w, spread), cyan)
             if (bottom) drawGradient(0f, h, 0f, h - spread,
                 RectF(0f, h - spread, w, h), if (purple) violet else cyan)
