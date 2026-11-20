@@ -55,6 +55,7 @@ class NativeActionReceiver : BroadcastReceiver() {
                 "text" -> node.text?.toString() == value
                 "description" -> node.contentDescription?.toString() == value
                 "resourceId" -> node.viewIdResourceName == value
+                "label" -> node.text?.toString() == value || node.contentDescription?.toString() == value
                 else -> false
             }
         }
@@ -83,7 +84,7 @@ class NativeActionReceiver : BroadcastReceiver() {
 
             if (!ID_FORMAT.matches(id)) return refuse("invalid-request-id")
             if (!PACKAGE_FORMAT.matches(pkg) || !allowed(context, pkg)) return refuse("package-not-allowed")
-            if (selector !in setOf("text", "description", "resourceId") ||
+            if (selector !in setOf("text", "description", "resourceId", "label") ||
                 value.isBlank() || value.length > 180 ||
                 value.any { it == '\n' || it == '\r' || it.code < 32 })
                 return refuse("invalid-exact-selector")
@@ -102,18 +103,46 @@ class NativeActionReceiver : BroadcastReceiver() {
             queue.add(root)
             val candidates = mutableListOf<AccessibilityNodeInfo>()
             var count = 0
+            var textMatches = 0
+            var descriptionMatches = 0
+            var resourceIdMatches = 0
             while (queue.isNotEmpty() && count < MAX_NODES) {
                 val node = queue.removeFirst()
                 count++
+                if (node.isVisibleToUser && node.isEnabled && !node.isPassword) {
+                    if (node.text?.toString() == value) textMatches++
+                    if (node.contentDescription?.toString() == value) descriptionMatches++
+                    if (node.viewIdResourceName == value) resourceIdMatches++
+                }
                 if (matches(node, selector, value)) candidates.add(node)
                 for (i in 0 until node.childCount) node.getChild(i)?.let { queue.add(it) }
             }
+            result.put("visitedNodeCount", count)
+                .put("exactTextMatchCount", textMatches)
+                .put("exactDescriptionMatchCount", descriptionMatches)
+                .put("exactResourceIdMatchCount", resourceIdMatches)
+                .put("exactSelectorMatchCount", candidates.size)
+                .put("rootWindowId", root.windowId)
             if (queue.isNotEmpty()) return refuse("hierarchy-too-large")
-            if (candidates.size != 1) return refuse("expected-one-exact-visible-target-found-${candidates.size}")
-            val button = clickable(candidates[0]) ?: return refuse("target-not-clickable")
+            // Labels are allowed on a child or its clickable ancestor, so a
+            // single control can expose the same label on multiple nodes.
+            // Collapse those to distinct clickable targets before deciding.
+            val controls = mutableListOf<AccessibilityNodeInfo>()
+            for (candidate in candidates) {
+                val actionable = clickable(candidate) ?: continue
+                if (actionable.windowId != root.windowId) continue
+                if (controls.none { it == actionable }) controls.add(actionable)
+            }
+            result.put("uniqueClickableTargetCount", controls.size)
+            if (controls.size != 1) return refuse("expected-one-exact-visible-target-found-${controls.size}")
+            val button = controls[0]
             val bounds = Rect()
             button.getBoundsInScreen(bounds)
             if (bounds.isEmpty) return refuse("target-has-empty-bounds")
+            // Refresh the live node rather than trusting the earlier tree.
+            if (!button.refresh() || !button.isVisibleToUser || !button.isEnabled ||
+                !button.isClickable || button.windowId != root.windowId)
+                return refuse("target-stale-or-disabled")
             if (!SessionLease.isActive(context)) return refuse("automation-session-stopped")
 
             // Commit an at-most-once outcome before dispatch. The broadcast receiver
