@@ -9,9 +9,9 @@ class GlowReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             "com.codexedge.glow.STOP" -> context.stopService(Intent(context, GlowService::class.java))
-            "com.codexedge.glow.START", "com.codexedge.glow.PING" -> {
+            "com.codexedge.glow.START", "com.codexedge.glow.PING", "com.codexedge.glow.STATUS" -> {
                 if (Settings.canDrawOverlays(context)) {
-                    context.startForegroundService(Intent(context, GlowService::class.java).setAction(intent.action))
+                    context.startForegroundService(Intent(context, GlowService::class.java).setAction(intent.action).putExtra("status", intent.getStringExtra("status")))
                 }
             }
         }
