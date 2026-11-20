@@ -84,6 +84,7 @@ class GlowService : Service() {
             val spread = prefs.getInt("spread", 52) * d
             val speed = prefs.getInt("speed", 35) / 100f
             val purple = prefs.getBoolean("purple", true)
+            val bottom = prefs.getBoolean("bottom_glow", false)
             val t = (SystemClock.uptimeMillis() - started) / 1000.0
             val breath = (0.74 + 0.26 * sin(t * (0.5 + speed * 1.8))).toFloat()
             val a = (160f * strength * breath).toInt().coerceIn(0, 255)
@@ -97,10 +98,32 @@ class GlowService : Service() {
                 canvas.drawRect(rect, paint)
                 paint.shader = null
             }
-            drawGradient(0f, 0f, spread, 0f, RectF(0f, 0f, spread, h), cyan)
-            drawGradient(w, 0f, w-spread, 0f, RectF(w-spread, 0f, w, h), cyan)
+            // Draw horizontal gradient strips with a smooth fade toward the gesture bar.
+            val steps = 64
+            val sideEnd = if (bottom) h else h * 0.92f
+            for (i in 0 until steps) {
+                val y0 = sideEnd * i / steps
+                val y1 = sideEnd * (i + 1) / steps + 1f
+                val progress = y0 / sideEnd
+                val fade = if (progress < 0.65f) 1f else
+                    ((1f - progress) / 0.35f).coerceIn(0f, 1f)
+                val alpha = (a * fade * fade).toInt().coerceIn(0, 255)
+                val c = if (purple && progress > 0.55f) violet else cyan
+                fun strip(x0: Float, x1: Float, rect: RectF) {
+                    paint.shader = LinearGradient(x0, 0f, x1, 0f,
+                        intArrayOf(Color.argb(alpha, Color.red(c), Color.green(c), Color.blue(c)),
+                            Color.argb((alpha * .3f).toInt(), Color.red(c), Color.green(c), Color.blue(c)),
+                            Color.TRANSPARENT),
+                        floatArrayOf(0f, .3f, 1f), Shader.TileMode.CLAMP)
+                    canvas.drawRect(rect, paint)
+                }
+                strip(0f, spread, RectF(0f, y0, spread, y1))
+                strip(w, w - spread, RectF(w - spread, y0, w, y1))
+            }
+            paint.shader = null
             drawGradient(0f, 0f, 0f, spread, RectF(0f, 0f, w, spread), cyan)
-            drawGradient(0f, h, 0f, h-spread, RectF(0f, h-spread, w, h), if (purple) violet else cyan)
+            if (bottom) drawGradient(0f, h, 0f, h - spread,
+                RectF(0f, h - spread, w, h), if (purple) violet else cyan)
             postInvalidateDelayed(50)
         }
     }
