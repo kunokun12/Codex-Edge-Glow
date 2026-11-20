@@ -146,5 +146,14 @@ class ScreenAccessService : AccessibilityService() {
             }
         } catch (_: Exception) { }
     }
+    /**
+     * Diagnostic-only refresh used by the DUMP-protected, read-only probe.
+     * Writes the same snapshot format consumed by Android MCP, making it
+     * possible to compare a service snapshot and a live tree within one call.
+     * Never dispatches an accessibility action.
+     */
+    internal fun captureSnapshotForProbe() {
+        captureSnapshot()
+    }
     override fun onInterrupt() {}
 }
