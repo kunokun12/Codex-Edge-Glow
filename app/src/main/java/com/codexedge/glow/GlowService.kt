@@ -45,16 +45,36 @@ class GlowService : Service() {
             }
         }
     }
-    private val timeout = 120_000L
+    private val timeout = SessionLease.TIMEOUT_MS
     private val watchdog = object : Runnable {
         override fun run() {
-            if (SystemClock.elapsedRealtime() >= expiresAt) { stopSelf(); return }
+            if (SystemClock.elapsedRealtime() >= expiresAt) {
+                SessionLease.stop(this@GlowService, "watchdog_timeout")
+                stopSelf()
+                return
+            }
             handler.postDelayed(this, 1000)
         }
     }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!Settings.canDrawOverlays(this)) { stopSelf(); return START_NOT_STICKY }
+        if (!Settings.canDrawOverlays(this)) {
+            SessionLease.stop(this, "overlay_permission_missing")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        val action = intent?.action
+        // MainActivity preview starts the service directly.
+        // PING/STATUS must never re-arm a stopped session.
+        val allowed = when (action) {
+            "com.codexedge.glow.START", "START" ->
+                if (SessionLease.isActive(this)) true else SessionLease.start(this)
+            "com.codexedge.glow.PING", "com.codexedge.glow.STATUS" ->
+                SessionLease.isActive(this)
+            else -> false
+        }
+        if (!allowed) { stopSelf(); return START_NOT_STICKY }
+        android.util.Log.i("CodexEdgeLease", "Service accepted action=$action")
         val status = intent?.getStringExtra("status")?.replace(13.toChar(), ' ')?.replace(10.toChar(), ' ')?.take(72)
         if (!status.isNullOrBlank()) currentStatus = status
         if (!status.isNullOrBlank()) {
@@ -65,7 +85,11 @@ class GlowService : Service() {
         updateNotification()
         expiresAt = SystemClock.elapsedRealtime() + timeout
         if (glowViews.isEmpty()) {
-            if (!showEdgeOnlyGlow()) { stopSelf(); return START_NOT_STICKY }
+            if (!showEdgeOnlyGlow()) {
+                SessionLease.stop(this, "overlay_window_creation_failed")
+                stopSelf()
+                return START_NOT_STICKY
+            }
             handler.post(watchdog)
         }
         return START_NOT_STICKY
@@ -137,7 +161,10 @@ class GlowService : Service() {
         super.onConfigurationChanged(newConfig)
         if (glowViews.isNotEmpty()) {
             removeGlowWindows()
-            if (!showEdgeOnlyGlow()) stopSelf()
+            if (!showEdgeOnlyGlow()) {
+                SessionLease.stop(this, "configuration_recreation_failed")
+                stopSelf()
+            }
         }
     }
 
@@ -166,6 +193,9 @@ class GlowService : Service() {
         startForeground(42, notification)
     }
     override fun onDestroy() {
+        // STOP/watchdog expiry has already persisted inactive. Unknown service
+        // destruction fails closed rather than allowing a late PING to revive.
+        if (SessionLease.isActive(this)) SessionLease.stop(this, "service_destroyed")
         handler.removeCallbacksAndMessages(null)
         removeGlowWindows()
         super.onDestroy()
