@@ -25,11 +25,12 @@
                 <action android:name="com.codexedge.glow.NATIVE_CLICK" />
             </intent-filter>
         </receiver>
-        <receiver android:name=".GlowReceiver" android:exported="true">
+        <receiver android:name=".GlowReceiver" android:exported="true" android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="com.codexedge.glow.START"/>
                 <action android:name="com.codexedge.glow.STOP"/>
-                <action android:name="com.codexedge.glow.PING"/>\n                <action android:name="com.codexedge.glow.STATUS"/>
+                <action android:name="com.codexedge.glow.PING"/>
+                <action android:name="com.codexedge.glow.STATUS"/>
             </intent-filter>
         </receiver>
     </application>
