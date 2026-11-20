@@ -4,6 +4,8 @@ import android.app.Service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
@@ -11,11 +13,13 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
+import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import kotlin.math.sin
@@ -38,10 +42,23 @@ class GlowService : Service() {
         val channelId = "edge_glow_active"
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         nm.createNotificationChannel(NotificationChannel(channelId, "Codex automation", NotificationManager.IMPORTANCE_LOW))
+        val stopIntent = Intent(this, GlowReceiver::class.java).apply {
+            action = "com.codexedge.glow.STOP"
+        }
+        val stopPendingIntent = PendingIntent.getBroadcast(
+            this, 43, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         val notification = Notification.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_menu_view)
-            .setContentTitle("Codex Edge Glow active")
-            .setContentText("Android automation indicator is on")
+            .setContentTitle("Codex is using your phone")
+            .setContentText("Android automation session active")
+            .setCategory(Notification.CATEGORY_SERVICE)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .addAction(Notification.Action.Builder(
+                null, "Stop session", stopPendingIntent
+            ).build())
             .build()
         startForeground(42, notification)
         expiresAt = SystemClock.elapsedRealtime() + maxIdleMs
@@ -55,9 +72,15 @@ class GlowService : Service() {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 android.graphics.PixelFormat.TRANSLUCENT
             )
+            params.gravity = Gravity.TOP or Gravity.START
+            if (Build.VERSION.SDK_INT >= 28) {
+                params.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
             try { wm?.addView(view, params) } catch (_: Exception) { stopSelf(); return START_NOT_STICKY }
             handler.post(watchdog)
         }
@@ -70,27 +93,30 @@ class GlowService : Service() {
         super.onDestroy()
     }
     inner class GlowView : View(this@GlowService) {
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
         private val start = SystemClock.uptimeMillis()
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
-            val density = resources.displayMetrics.density
+            if (width <= 0 || height <= 0) return
+            val d = resources.displayMetrics.density
             val t = (SystemClock.uptimeMillis() - start) / 1000.0
             val pulse = (sin(t * 2.5) + 1.0) / 2.0
-            val phase = ((t * 0.15) % 1.0).toFloat()
-            val colors = intArrayOf(Color.CYAN, Color.rgb(142, 67, 255), Color.CYAN)
+            val phase = ((t * 0.12) % 1.0).toFloat()
+            val colors = intArrayOf(Color.rgb(0, 229, 255), Color.rgb(159, 86, 255), Color.rgb(0, 229, 255))
             paint.shader = LinearGradient(
                 width * phase, 0f, width * (1f - phase), height.toFloat(),
                 colors, null, Shader.TileMode.MIRROR
             )
-            val inset = 8f * density
+            val inset = 4.5f * d
             val rect = RectF(inset, inset, width - inset, height - inset)
-            paint.strokeWidth = (12 + 5 * pulse).toFloat() * density
-            paint.alpha = (55 + 55 * pulse).toInt()
-            canvas.drawRoundRect(rect, 22f * density, 22f * density, paint)
-            paint.strokeWidth = 3.5f * density
-            paint.alpha = 245
-            canvas.drawRoundRect(rect, 22f * density, 22f * density, paint)
+            paint.strokeWidth = (9 + 4 * pulse).toFloat() * d
+            paint.alpha = (65 + 55 * pulse).toInt()
+            canvas.drawRoundRect(rect, 24f * d, 24f * d, paint)
+            paint.strokeWidth = 2.8f * d
+            paint.alpha = 255
+            canvas.drawRoundRect(rect, 24f * d, 24f * d, paint)
+            paint.shader = null
+
             postInvalidateDelayed(33)
         }
     }
