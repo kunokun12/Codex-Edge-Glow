@@ -84,12 +84,22 @@ class MainActivity : Activity() {
         slider(appearance, "Glow width", "spread", 52, " dp")
         slider(appearance, "Breathing speed", "speed", 35, "%")
         val toggleRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        toggleRow.addView(text("Purple bottom accent", 15f, primary, true), LinearLayout.LayoutParams(0, -2, 1f))
+        toggleRow.addView(text("Purple side accent", 15f, primary, true), LinearLayout.LayoutParams(0, -2, 1f))
         toggleRow.addView(Switch(this).apply {
             isChecked = prefs.getBoolean("purple", true)
             setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean("purple", checked).apply() }
         })
         appearance.addView(toggleRow)
+        val bottomRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, 0) }
+        val bottomLabel = column()
+        bottomLabel.addView(text("Bottom glow", 15f, primary, true))
+        bottomLabel.addView(text("Off by default · cleaner gesture bar", 12f, muted))
+        bottomRow.addView(bottomLabel, LinearLayout.LayoutParams(0, -2, 1f))
+        bottomRow.addView(Switch(this).apply {
+            isChecked = prefs.getBoolean("bottom_glow", false)
+            setOnCheckedChangeListener { _, checked -> prefs.edit().putBoolean("bottom_glow", checked).apply() }
+        })
+        appearance.addView(bottomRow)
         val access = section(root, "Permissions & status", "System access needed for the edge overlay")
         access.addView(button("Manage display-over-apps", Color.rgb(53, 65, 84)) {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
