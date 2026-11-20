@@ -21,7 +21,7 @@
             <intent-filter>
                 <action android:name="com.codexedge.glow.START"/>
                 <action android:name="com.codexedge.glow.STOP"/>
-                <action android:name="com.codexedge.glow.PING"/>
+                <action android:name="com.codexedge.glow.PING"/>\n                <action android:name="com.codexedge.glow.STATUS"/>
             </intent-filter>
         </receiver>
     </application>
