@@ -14,18 +14,35 @@ class GlowService : Service() {
     private var glow: GlowView? = null
     private var expiresAt = 0L
     private var currentStatus = "Ready for Android actions"
-    // Compact labels are intentionally short for promoted ongoing status chips.
+    // Prefer the destination when known; otherwise show the action.
     private fun compactStatus(message: String): String {
         val s = message.lowercase()
         return when {
+            s.contains("thinking") || s.contains("reasoning") -> "Thinking"
+            s.contains("idle") || s.contains("ready") -> "Idle"
+            s.contains("return") || s.contains("finish") -> "Returning"
             s.contains("wait") || s.contains("loading") -> "Waiting"
             s.contains("verif") || s.contains("check") || s.contains("inspect") -> "Checking"
+            s.contains("about device") -> "About"
+            s.contains("settings") -> "Settings"
+            s.contains("chrome") -> "Chrome"
+            s.contains("browser") || s.contains("yepanywhere") -> "Browser"
+            s.contains("download") -> "Download"
             s.contains("scroll") || s.contains("swipe") -> "Scroll"
             s.contains("tap") || s.contains("click") || s.contains("press") -> "Tapping"
-            s.contains("return") || s.contains("finish") -> "Returning"
             s.contains("open") || s.contains("launch") || s.contains("start") -> "Opening"
             s.contains("screen") || s.contains("capture") -> "Viewing"
             else -> "Codex"
+        }
+    }
+    private var lastActionAt = 0L
+    private val idleDelay = 5_000L
+    private val idleIndicator = object : Runnable {
+        override fun run() {
+            if (glow != null && SystemClock.elapsedRealtime() - lastActionAt >= idleDelay) {
+                currentStatus = "Waiting for next Codex action"
+                updateNotification()
+            }
         }
     }
     private val timeout = 120_000L
@@ -40,6 +57,35 @@ class GlowService : Service() {
         if (!Settings.canDrawOverlays(this)) { stopSelf(); return START_NOT_STICKY }
         val status = intent?.getStringExtra("status")?.replace(13.toChar(), ' ')?.replace(10.toChar(), ' ')?.take(72)
         if (!status.isNullOrBlank()) currentStatus = status
+        if (!status.isNullOrBlank()) {
+            lastActionAt = SystemClock.elapsedRealtime()
+            handler.removeCallbacks(idleIndicator)
+            handler.postDelayed(idleIndicator, idleDelay)
+        }
+        updateNotification()
+        expiresAt = SystemClock.elapsedRealtime() + timeout
+        if (glow == null) {
+            window = getSystemService(WINDOW_SERVICE) as WindowManager
+            glow = GlowView(this)
+            val lp = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT)
+            lp.gravity = Gravity.TOP or Gravity.START
+            if (Build.VERSION.SDK_INT >= 28) lp.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            try { window?.addView(glow, lp) } catch (_: Exception) { stopSelf(); return START_NOT_STICKY }
+            handler.post(watchdog)
+        }
+        return START_NOT_STICKY
+    }
+    private fun updateNotification() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channel = "edge_glow_active"
         nm.createNotificationChannel(NotificationChannel(channel, "Codex automation", NotificationManager.IMPORTANCE_LOW))
@@ -62,27 +108,6 @@ class GlowService : Service() {
             .addAction(Notification.Action.Builder(null, "Stop session", stop).build())
             .build()
         startForeground(42, notification)
-        expiresAt = SystemClock.elapsedRealtime() + timeout
-        if (glow == null) {
-            window = getSystemService(WINDOW_SERVICE) as WindowManager
-            glow = GlowView(this)
-            val lp = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT)
-            lp.gravity = Gravity.TOP or Gravity.START
-            if (Build.VERSION.SDK_INT >= 28) lp.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            try { window?.addView(glow, lp) } catch (_: Exception) { stopSelf(); return START_NOT_STICKY }
-            handler.post(watchdog)
-        }
-        return START_NOT_STICKY
     }
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
