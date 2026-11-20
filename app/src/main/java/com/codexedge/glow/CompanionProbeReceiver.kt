@@ -85,7 +85,7 @@ class CompanionProbeReceiver : BroadcastReceiver() {
                 .put("nodeMetadata", sample)
         }
 
-        private fun snapshotSummary(context: Context, value: String): JSONObject {
+        private fun snapshotSummary(context: Context, pkg: String, value: String): JSONObject {
             val file = File(context.filesDir, "ui-snapshot.json")
             if (!file.exists()) return JSONObject().put("status", "missing")
             return try {
@@ -104,7 +104,7 @@ class CompanionProbeReceiver : BroadcastReceiver() {
                 JSONObject()
                     .put("status", "available")
                     .put("windowId", data.optInt("windowId", -1))
-                    .put("packageMatchesRequested", data.optString("package").isNotEmpty())
+                    .put("packageMatchesRequested", data.optString("package") == pkg)
                     .put("nodeCount", nodes.length())
                     .put("clickableNodes", clickable)
                     .put("exactTextMatches", text)
@@ -159,7 +159,7 @@ class CompanionProbeReceiver : BroadcastReceiver() {
                         output.put("status", "REFUSED").put("reason", "service-not-connected")
                     } else {
                         val isBenchmark = pkg == "dev.androidroute.benchmark"
-                        output.put("storedSnapshotBefore", snapshotSummary(context, value))
+                        output.put("storedSnapshotBefore", snapshotSummary(context, pkg, value))
                         service.captureSnapshotForProbe()
                         output.put("freshServiceSnapshot", snapshotSummary(context, value))
                         val active = service.rootInActiveWindow
