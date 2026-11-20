@@ -161,7 +161,7 @@ class CompanionProbeReceiver : BroadcastReceiver() {
                         val isBenchmark = pkg == "dev.androidroute.benchmark"
                         output.put("storedSnapshotBefore", snapshotSummary(context, pkg, value))
                         service.captureSnapshotForProbe()
-                        output.put("freshServiceSnapshot", snapshotSummary(context, value))
+                        output.put("freshServiceSnapshot", snapshotSummary(context, pkg, value))
                         val active = service.rootInActiveWindow
                         val activeSummary = JSONObject()
                         if (active != null) {
