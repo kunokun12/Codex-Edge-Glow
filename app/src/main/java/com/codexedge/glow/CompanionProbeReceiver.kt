@@ -46,7 +46,7 @@ class CompanionProbeReceiver : BroadcastReceiver() {
             }
             return JSONObject()
                 .put("windowId", root.windowId)
-                .put("packageMatchesRequested", root.packageName?.toString() != null)
+                .put("rootPackagePresent", root.packageName?.toString() != null)
                 .put("rootClass", root.className?.toString() ?: "")
                 .put("rootChildCount", root.childCount)
                 .put("rootVisible", root.isVisibleToUser)
@@ -85,7 +85,8 @@ class CompanionProbeReceiver : BroadcastReceiver() {
             if (!ID.matches(id) || pkg.isBlank() || value.isBlank() || value.length > 180) {
                 output.put("status", "REFUSED").put("reason", "invalid-request")
             } else if (!SessionLease.isActive(context) ||
-                System.currentTimeMillis() - SessionLease.lastHeartbeat(context) !in 0 until SessionLease.TIMEOUT_MS) {
+                System.currentTimeMillis() < SessionLease.lastHeartbeat(context) ||
+                System.currentTimeMillis() - SessionLease.lastHeartbeat(context) >= SessionLease.TIMEOUT_MS) {
                 output.put("status", "REFUSED").put("reason", "session-not-active")
             } else {
                 val allowlist = context.getSharedPreferences("automation_settings", Context.MODE_PRIVATE)
