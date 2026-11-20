@@ -78,7 +78,6 @@ class GlowService : Service() {
     private fun showEdgeOnlyGlow(): Boolean {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val size = Point()
-        @Suppress("DEPRECATION")
         wm.defaultDisplay.getRealSize(size)
         if (size.x <= 0 || size.y <= 0) return false
         val density = resources.displayMetrics.density
