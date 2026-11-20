@@ -6,6 +6,8 @@ import android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
 import android.view.accessibility.AccessibilityEvent.TYPE_WINDOWS_CHANGED
 import android.view.accessibility.AccessibilityNodeInfo
 import android.os.SystemClock
+import android.os.Handler
+import android.os.Looper
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -17,12 +19,39 @@ import java.io.File
  */
 class ScreenAccessService : AccessibilityService() {
     private var lastWrite = 0L
+    private val handler = Handler(Looper.getMainLooper())
+    private val refreshRequest by lazy { File(filesDir, "ui-refresh-request") }
+    private val refreshPoll = object : Runnable {
+        override fun run() {
+            try {
+                if (refreshRequest.exists()) {
+                    refreshRequest.delete()
+                    captureSnapshot()
+                }
+            } catch (_: Exception) { }
+            handler.postDelayed(this, 350)
+        }
+    }
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        handler.removeCallbacks(refreshPoll)
+        handler.post(refreshPoll)
+        captureSnapshot()
+    }
+    override fun onDestroy() {
+        handler.removeCallbacks(refreshPoll)
+        super.onDestroy()
+    }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val now = SystemClock.uptimeMillis()
         val windowChanged = event != null && (event.eventType == TYPE_WINDOW_STATE_CHANGED || event.eventType == TYPE_WINDOWS_CHANGED)
         if (!windowChanged && now - lastWrite < 200) return
-        lastWrite = now
+        captureSnapshot()
+    }
+    private fun captureSnapshot() {
+        val now = SystemClock.uptimeMillis()
         val root = rootInActiveWindow ?: return
+        lastWrite = now
         try {
             val list = JSONArray()
             val queue = ArrayDeque<AccessibilityNodeInfo>()
