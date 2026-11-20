@@ -2,6 +2,8 @@ package com.codexedge.glow
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+import android.view.accessibility.AccessibilityEvent.TYPE_WINDOWS_CHANGED
 import android.view.accessibility.AccessibilityNodeInfo
 import android.os.SystemClock
 import org.json.JSONArray
@@ -17,7 +19,8 @@ class ScreenAccessService : AccessibilityService() {
     private var lastWrite = 0L
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val now = SystemClock.uptimeMillis()
-        if (now - lastWrite < 200) return
+        val windowChanged = event != null && (event.eventType == TYPE_WINDOW_STATE_CHANGED || event.eventType == TYPE_WINDOWS_CHANGED)
+        if (!windowChanged && now - lastWrite < 200) return
         lastWrite = now
         val root = rootInActiveWindow ?: return
         try {
@@ -44,11 +47,17 @@ class ScreenAccessService : AccessibilityService() {
                 for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
             }
             val data = JSONObject().put("timestamp", System.currentTimeMillis())
+                .put("capturedAtUptimeMs", now)
+                .put("windowId", root.windowId)
                 .put("package", root.packageName?.toString() ?: "")
                 .put("nodes", list)
             val tmp = File(filesDir, "ui-snapshot.tmp")
             tmp.writeText(data.toString())
-            tmp.renameTo(File(filesDir, "ui-snapshot.json"))
+            val target = File(filesDir, "ui-snapshot.json")
+            if (!tmp.renameTo(target)) {
+                tmp.copyTo(target, overwrite = true)
+                tmp.delete()
+            }
         } catch (_: Exception) { }
     }
     override fun onInterrupt() {}
