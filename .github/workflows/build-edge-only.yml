@@ -1,9 +1,9 @@
-name: Build Edge Glow (Edge-Only) APK
+name: Build Edge Glow (Session Lease) APK
 
 on:
   push:
     branches:
-      - feature/edge-only-native-compat
+      - feature/session-lease-v1.2
     paths:
       - 'app/**'
       - '.github/workflows/build-edge-only.yml'
@@ -42,6 +42,6 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: codex-edge-glow-edge-only-debug-apk
+          name: codex-edge-glow-session-lease-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
