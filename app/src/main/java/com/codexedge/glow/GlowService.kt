@@ -24,7 +24,7 @@ class GlowService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!Settings.canDrawOverlays(this)) { stopSelf(); return START_NOT_STICKY }
-        val status = intent?.getStringExtra("status")?.replace(Regex("""[\\r\\n]"""), " ")?.take(72)
+        val status = intent?.getStringExtra("status")?.replace(13.toChar(), ' ').replace(10.toChar(), ' ')?.take(72)
         if (!status.isNullOrBlank()) currentStatus = status
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channel = "edge_glow_active"
