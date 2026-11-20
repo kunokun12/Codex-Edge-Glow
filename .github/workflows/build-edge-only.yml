@@ -1,9 +1,9 @@
-name: Build Codex Companion v2.3 APK
+name: Build Codex Companion (Persistent Signing)
 
 on:
   push:
     branches:
-      - feature/companion-v2-3-snapshot-correlation
+      - feature/companion-persistent-signing
     paths:
       - 'app/**'
       - '.github/workflows/build-edge-only.yml'
@@ -38,10 +38,54 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build Edge Glow
+      - name: Validate persistent signing secrets
+        shell: bash
+        env:
+          CODEX_SIGNING_KEYSTORE_BASE64: ${{ secrets.CODEX_SIGNING_KEYSTORE_BASE64 }}
+          CODEX_SIGNING_STORE_PASSWORD: ${{ secrets.CODEX_SIGNING_STORE_PASSWORD }}
+          CODEX_SIGNING_KEY_ALIAS: ${{ secrets.CODEX_SIGNING_KEY_ALIAS }}
+          CODEX_SIGNING_KEY_PASSWORD: ${{ secrets.CODEX_SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for key in CODEX_SIGNING_KEYSTORE_BASE64 CODEX_SIGNING_STORE_PASSWORD CODEX_SIGNING_KEY_ALIAS CODEX_SIGNING_KEY_PASSWORD; do
+            if [ -z "${!key:-}" ]; then
+              echo "::error::Missing GitHub Actions signing secret: $key"
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$CODEX_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/codex-companion-signing.p12"
+          keytool -list -keystore "$RUNNER_TEMP/codex-companion-signing.p12" \
+            -storepass "$CODEX_SIGNING_STORE_PASSWORD" -alias "$CODEX_SIGNING_KEY_ALIAS" > /dev/null
+          echo "CODEX_SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/codex-companion-signing.p12" >> "$GITHUB_ENV"
+      - name: Build Companion with persistent signing key
+        env:
+          CODEX_SIGNING_STORE_PASSWORD: ${{ secrets.CODEX_SIGNING_STORE_PASSWORD }}
+          CODEX_SIGNING_KEY_ALIAS: ${{ secrets.CODEX_SIGNING_KEY_ALIAS }}
+          CODEX_SIGNING_KEY_PASSWORD: ${{ secrets.CODEX_SIGNING_KEY_PASSWORD }}
         run: gradle --no-daemon :app:assembleDebug
+      - name: Verify signing certificate
+        shell: bash
+        env:
+          CODEX_SIGNING_STORE_PASSWORD: ${{ secrets.CODEX_SIGNING_STORE_PASSWORD }}
+          CODEX_SIGNING_KEY_ALIAS: ${{ secrets.CODEX_SIGNING_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          keytool -exportcert -rfc -keystore "$CODEX_SIGNING_KEYSTORE_PATH" \
+            -storepass "$CODEX_SIGNING_STORE_PASSWORD" -alias "$CODEX_SIGNING_KEY_ALIAS" \
+            > "$RUNNER_TEMP/expected.pem"
+          keytool -printcert -file "$RUNNER_TEMP/expected.pem" | grep SHA256
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          SDK_APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$SDK_APKSIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/apk-verify.txt"
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' "$RUNNER_TEMP/apk-verify.txt"
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/codex-companion-signing.p12"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: codex-companion-v2-3-debug-apk
+          name: codex-companion-persistent-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
