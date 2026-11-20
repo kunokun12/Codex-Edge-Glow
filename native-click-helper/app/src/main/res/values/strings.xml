@@ -1,0 +1,1 @@
+<resources><string name="accessibility_description">Only performs the fixed Open Guide accessibility click in the Route Benchmark app, after an explicit authorized ADB shell request.</string></resources>
