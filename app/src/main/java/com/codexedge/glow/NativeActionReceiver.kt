@@ -119,9 +119,10 @@ class NativeActionReceiver : BroadcastReceiver() {
             // Commit an at-most-once outcome before dispatch. The broadcast receiver
             // serializes main-thread requests; the journal survives process death.
             val journal = context.getSharedPreferences("native_action_journal", Context.MODE_PRIVATE)
-            val lastId = journal.getString("last_request_id", "")
-            if (lastId == id) return refuse("duplicate-request-id")
-            if (!journal.edit().putString("last_request_id", id).commit())
+            val key = "seen_" + java.security.MessageDigest.getInstance("SHA-256")
+                .digest(id.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+            if (journal.contains(key)) return refuse("duplicate-request-id")
+            if (!journal.edit().putBoolean(key, true).commit())
                 return refuse("journal-write-failed")
             result.put("status", "DISPATCH_UNCERTAIN")
                 .put("reason", "journal-committed-before-action")
