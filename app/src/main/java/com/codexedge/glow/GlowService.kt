@@ -14,6 +14,20 @@ class GlowService : Service() {
     private var glow: GlowView? = null
     private var expiresAt = 0L
     private var currentStatus = "Ready for Android actions"
+    // Compact labels are intentionally short for promoted ongoing status chips.
+    private fun compactStatus(message: String): String {
+        val s = message.lowercase()
+        return when {
+            s.contains("wait") || s.contains("loading") -> "Waiting"
+            s.contains("verif") || s.contains("check") || s.contains("inspect") -> "Checking"
+            s.contains("scroll") || s.contains("swipe") -> "Scroll"
+            s.contains("tap") || s.contains("click") || s.contains("press") -> "Tapping"
+            s.contains("return") || s.contains("finish") -> "Returning"
+            s.contains("open") || s.contains("launch") || s.contains("start") -> "Opening"
+            s.contains("screen") || s.contains("capture") -> "Viewing"
+            else -> "Codex"
+        }
+    }
     private val timeout = 120_000L
     private val watchdog = object : Runnable {
         override fun run() {
@@ -35,7 +49,7 @@ class GlowService : Service() {
         val extras = Bundle().apply {
             if (Build.VERSION.SDK_INT >= 36) {
                 putBoolean("android.requestPromotedOngoing", true)
-                putString("android.shortCriticalText", "Codex")
+                putString("android.shortCriticalText", compactStatus(currentStatus))
             }
         }
         val notification = Notification.Builder(this, channel)
