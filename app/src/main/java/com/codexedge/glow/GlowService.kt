@@ -17,6 +17,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.Gravity
@@ -49,6 +50,16 @@ class GlowService : Service() {
             this, 43, stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        // Android 16+ can promote an eligible ongoing notification to a live
+        // status chip. ColorOS decides whether to show a Live Alert; on other
+        // systems the ordinary foreground notification remains visible.
+        // Use the documented extras key to stay compatible with compileSdk 35.
+        val liveExtras = Bundle().apply {
+            if (Build.VERSION.SDK_INT >= 36) {
+                putBoolean("android.requestPromotedOngoing", true)
+                putString("android.shortCriticalText", "Codex")
+            }
+        }
         val notification = Notification.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setContentTitle("Codex is using your phone")
@@ -56,6 +67,7 @@ class GlowService : Service() {
             .setCategory(Notification.CATEGORY_SERVICE)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setExtras(liveExtras)
             .addAction(Notification.Action.Builder(
                 null, "Stop session", stopPendingIntent
             ).build())
