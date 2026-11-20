@@ -108,6 +108,13 @@ class MainActivity : Activity() {
         access.addView(button("Notification settings", Color.rgb(53, 65, 84)) {
             startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
         })
+        access.addView(View(this).apply { minimumHeight = dp(10) })
+        access.addView(button("Enable fast screen access", Color.rgb(53, 65, 84)) {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        })
+        access.addView(text("Optional: enable Codex Edge Glow in Accessibility settings to speed up UI targeting. Screen labels are stored privately on-device.", 12f, muted).apply {
+            setPadding(0, dp(10), 0, 0)
+        })
         root.addView(text("Live Alerts are managed by ColorOS. An ongoing notification remains available as fallback. The glow is touch-through.", 12f, muted).apply {
             setPadding(0, dp(22), 0, 0)
         })
