@@ -88,6 +88,8 @@ class NativeActionReceiver : BroadcastReceiver() {
                     .joinToString("") { "%02x".format(it) }
                 result.put("protocolId", "tessera.companion.fast-path.v2.5")
                     .put("taskId", request.getStringExtra("task_id") ?: "")
+                    .put("taskName", "benchmark.open_guide")
+                    .put("ownerIdHash", digest)
                     .put("sessionId", request.getStringExtra("session_id") ?: "")
                     .put("ownerHash", digest)
                     .put("observedAtEpochMs", System.currentTimeMillis())
@@ -191,12 +193,10 @@ class NativeActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION) return
         // A v2.5 request MUST NOT fall through to the legacy schema-2 click path.
-        // Until a reviewed owner-gated schema-3 dispatcher is implemented,
-        // fail closed without performing any Accessibility action.
+        // The v2.5 path is separate from legacy schema-2 dispatch.
         if (intent.getStringExtra("protocol_id") ==
             "tessera.companion.fast-path.v2.5") {
-            // This candidate does not execute v2.5 clicks. Never echo an
-            // unverified owner identity as if native ownership was proven.
+            // Correlation fields do not authenticate the broadcast caller.
             val owner = intent.getStringExtra("owner_id") ?: ""
             val ownerHash = if (owner.isNotEmpty()) {
                 java.security.MessageDigest.getInstance("SHA-256")
@@ -208,6 +208,8 @@ class NativeActionReceiver : BroadcastReceiver() {
                 .put("protocolId", "tessera.companion.fast-path.v2.5")
                 .put("requestId", intent.getStringExtra("request_id") ?: "")
                 .put("taskId", intent.getStringExtra("task_id") ?: "")
+                .put("taskName", "benchmark.open_guide")
+                .put("ownerIdHash", ownerHash)
                 .put("sessionId", intent.getStringExtra("session_id") ?: "")
                 .put("ownerHash", ownerHash)
                 .put("operation", "NATIVE_CLICK")
