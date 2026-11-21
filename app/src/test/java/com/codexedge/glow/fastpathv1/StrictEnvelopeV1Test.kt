@@ -141,7 +141,7 @@ class StrictEnvelopeV1Test {
             val definition = jsonToKotlin(record.get("routeDefinition"))
             @Suppress("UNCHECKED_CAST")
             val calculated = CanonicalRouteV1.fingerprint(
-                record.get("routeId").asString, record.get("routeVersion").asInt,
+                record.get("routeId").asString, record.get("routeVersion").asLong,
                 definition as Map<String, Any?>)
             content = payload.replace("\"routeFingerprint\":\"$hash\"",
                 "\"routeFingerprint\":\"$calculated\"")
@@ -233,6 +233,37 @@ class StrictEnvelopeV1Test {
             "routeFingerprint":"$hash","routeDefinition":$routeDefinition}"""
         val valid = envelope("route.execute", payload)
         assertEquals("route.execute", StrictEnvelopeV1.parse(valid)["messageType"])
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(valid.replace(
+                Regex("\"routeFingerprint\":\"[0-9a-f]{64}\""),
+                "\"routeFingerprint\":\"0000000000000000000000000000000000000000000000000000000000000000\""))
+        }
+    }
+
+    @Test fun routeVersionAboveIntRangeRetainsFingerprintIntegrity() {
+        val version = 2147483648L
+        val fingerprint = CanonicalRouteV1.fingerprint(
+            "benchmark.open_guide", version,
+            jsonToKotlin(com.google.gson.JsonParser.parseString(routeDefinition)) as Map<String, Any?>)
+        val payload = """{"routeId":"benchmark.open_guide","routeVersion":$version,
+            "routeFingerprint":"$fingerprint","routeDefinition":$routeDefinition}"""
+        assertEquals("route.execute",
+            StrictEnvelopeV1.parse(envelope("route.execute", payload))["messageType"])
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(envelope("route.execute", payload.replace(
+                "\"routeFingerprint\":\"$fingerprint\"",
+                "\"routeFingerprint\":\"0000000000000000000000000000000000000000000000000000000000000000\"")))
+        }
+    }
+
+    @Test fun promotionRejectsValidShapeButWrongFingerprint() {
+        val payload = """{"promotionRecord":{"authorityKeyId":"root-1",
+            "registryEpoch":1,"issuedAtEpochMs":1,"expiresAtEpochMs":2,
+            "routeId":"benchmark.open_guide","routeVersion":1,
+            "routeFingerprint":"$hash","routeDefinition":$routeDefinition,
+            "signature":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}}"""
+        val valid = envelope("route.promote", payload)
+        assertEquals("route.promote", StrictEnvelopeV1.parse(valid)["messageType"])
         assertThrows(IllegalArgumentException::class.java) {
             StrictEnvelopeV1.parse(valid.replace(
                 Regex("\"routeFingerprint\":\"[0-9a-f]{64}\""),
