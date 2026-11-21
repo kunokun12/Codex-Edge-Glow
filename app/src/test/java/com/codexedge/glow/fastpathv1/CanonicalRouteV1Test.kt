@@ -30,6 +30,23 @@ class CanonicalRouteV1Test {
         }
     }
 
+    @Test fun enforcesJavaScriptSafeIntegerBoundary() {
+        assertEquals("9007199254740991", CanonicalRouteV1.encode(9007199254740991L))
+        assertEquals("-9007199254740991", CanonicalRouteV1.encode(-9007199254740991L))
+        assertThrows(IllegalArgumentException::class.java) {
+            CanonicalRouteV1.encode(9007199254740992L)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            CanonicalRouteV1.encode(-9007199254740992L)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            CanonicalRouteV1.encode(Long.MAX_VALUE)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            CanonicalRouteV1.encode(Long.MIN_VALUE)
+        }
+    }
+
     @Test fun rejectsUnpairedSurrogate() {
         assertThrows(IllegalArgumentException::class.java) {
             CanonicalRouteV1.encode("\uD800")
