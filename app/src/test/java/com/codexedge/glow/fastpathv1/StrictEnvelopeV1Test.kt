@@ -19,7 +19,7 @@ class StrictEnvelopeV1Test {
         "signerCertificateSha256":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
       },
       "expiresAtEpochMs":1790000000000,
-      "payload":{"routeId":"benchmark.open_guide","routeVersion":1,"routeFingerprint":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","maxAgeMs":1000}
+      "payload":{"routeId":"benchmark.open_guide","routeVersion":1,"routeFingerprint":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","maxAgeMs":1000,"afterSequence":0,"afterDigest":"0000000000000000000000000000000000000000000000000000000000000000","maxEvents":256}
     }""".trimIndent()
 
     @Test fun acceptsWellFormedEnvelope() {
@@ -66,4 +66,27 @@ class StrictEnvelopeV1Test {
     @Test fun rejectsTrailingJson() {
         assertThrows(Exception::class.java) { StrictEnvelopeV1.parse(base + " {}") }
     }
+    @Test fun statusRequiresJournalCursor() {
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(base.replace("\"afterSequence\":0,", ""))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(base.replace("\"maxEvents\":256", "\"maxEvents\":257"))
+        }
+    }
+
+    @Test fun strictTransportRejectsMalformedUtf8AndExcessTtl() {
+        assertThrows(java.nio.charset.CharacterCodingException::class.java) {
+            StrictEnvelopeV1.parseTransport(byteArrayOf(0xC3.toByte(), 0x28), 1789999999000L)
+        }
+        assertEquals("route.status", StrictEnvelopeV1.parseTransport(
+            base.toByteArray(Charsets.UTF_8), 1789999999000L)["messageType"])
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parseTransport(base.toByteArray(Charsets.UTF_8), 1789999000000L)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parseTransport(base.toByteArray(Charsets.UTF_8), 1790000000000L)
+        }
+    }
+
 }
