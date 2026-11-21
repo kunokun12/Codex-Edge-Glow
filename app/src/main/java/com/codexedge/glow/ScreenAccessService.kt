@@ -156,8 +156,14 @@ class ScreenAccessService : AccessibilityService() {
                     break
                 }
                 for (i in 0 until node.childCount) {
-                    node.getChild(i)?.let { queue.add(Pair(it, depth + 1)) }
+                    val child = node.getChild(i)
+                    if (child == null) {
+                        truncationReason = "inaccessible-child"
+                        break
+                    }
+                    queue.add(Pair(child, depth + 1))
                 }
+                if (truncationReason.isNotEmpty()) break
             }
         } catch (_: Exception) {
             collectionError = "traversal-exception"
