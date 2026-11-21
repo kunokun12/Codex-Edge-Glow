@@ -167,6 +167,28 @@ class NativeActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION) return
+        // A v2.5 request MUST NOT fall through to the legacy schema-2 click path.
+        // Until a reviewed owner-gated schema-3 dispatcher is implemented,
+        // fail closed without performing any Accessibility action.
+        if (intent.getStringExtra("protocol_id") ==
+            "tessera.companion.fast-path.v2.5") {
+            val result = JSONObject()
+                .put("schema", 3)
+                .put("protocolId", "tessera.companion.fast-path.v2.5")
+                .put("requestId", intent.getStringExtra("request_id") ?: "")
+                .put("taskId", intent.getStringExtra("task_id") ?: "")
+                .put("sessionId", intent.getStringExtra("session_id") ?: "")
+                .put("operation", "NATIVE_CLICK")
+                .put("targetPackage", intent.getStringExtra("target_package") ?: "")
+                .put("selectorType", intent.getStringExtra("selector_type") ?: "")
+                .put("status", "REFUSED")
+                .put("reason", "v25-native-click-not-implemented")
+                .put("destinationVerified", false)
+                .put("coordinateTapUsed", false)
+                .put("observedAtEpochMs", System.currentTimeMillis())
+            save(context, result)
+            return
+        }
         val result = try { execute(context, intent) }
             catch (_: Exception) {
                 // An exception may have occurred after ACTION_CLICK was handed
