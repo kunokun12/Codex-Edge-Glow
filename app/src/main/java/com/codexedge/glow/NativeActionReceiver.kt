@@ -71,28 +71,45 @@ class NativeActionReceiver : BroadcastReceiver() {
             return null
         }
 
-        private fun execute(context: Context, request: Intent): JSONObject {
+        private fun execute(context: Context, request: Intent, v25: Boolean = false): JSONObject {
             val id = request.getStringExtra("request_id") ?: ""
             val pkg = request.getStringExtra("target_package") ?: ""
             val selector = request.getStringExtra("selector_type") ?: ""
             val value = request.getStringExtra("selector_value") ?: ""
             val result = JSONObject()
-                .put("schema", 2).put("requestId", id).put("operation", "NATIVE_CLICK")
+                .put("schema", if (v25) 3 else 2)
+                .put("requestId", id).put("operation", "NATIVE_CLICK")
                 .put("targetPackage", pkg).put("selectorType", selector)
                 .put("coordinateTapUsed", false).put("destinationVerified", false)
+            if (v25) {
+                val owner = request.getStringExtra("owner_id") ?: ""
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(owner.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it) }
+                result.put("protocolId", "tessera.companion.fast-path.v2.5")
+                    .put("taskId", request.getStringExtra("task_id") ?: "")
+                    .put("sessionId", request.getStringExtra("session_id") ?: "")
+                    .put("ownerHash", digest)
+                    .put("observedAtEpochMs", System.currentTimeMillis())
+            }
             fun refuse(reason: String): JSONObject = result.put("status", "REFUSED").put("reason", reason)
 
-            if (!ID_FORMAT.matches(id)) return refuse("invalid-request-id")
+            if (v25) {
+                if (!TaskLeaseV25.authorizeClick(context, request))
+                    return refuse("v25-native-lease-not-authorized")
+            } else if (!ID_FORMAT.matches(id)) return refuse("invalid-request-id")
             if (!PACKAGE_FORMAT.matches(pkg) || !allowed(context, pkg)) return refuse("package-not-allowed")
             if (selector !in setOf("text", "description", "resourceId", "label") ||
                 value.isBlank() || value.length > 180 ||
                 value.any { it == '\n' || it == '\r' || it.code < 32 })
                 return refuse("invalid-exact-selector")
-            val now = System.currentTimeMillis()
-            val last = SessionLease.lastHeartbeat(context)
-            if (!SessionLease.isActive(context) || last <= 0L || now < last ||
-                now - last >= SessionLease.TIMEOUT_MS)
-                return refuse("automation-session-not-active")
+            if (!v25) {
+                val now = System.currentTimeMillis()
+                val last = SessionLease.lastHeartbeat(context)
+                if (!SessionLease.isActive(context) || last <= 0L || now < last ||
+                    now - last >= SessionLease.TIMEOUT_MS)
+                    return refuse("automation-session-not-active")
+            }
 
             val service = ScreenAccessService.current ?: return refuse("accessibility-service-not-connected")
             val root = service.rootInActiveWindow ?: return refuse("no-active-window")
@@ -143,7 +160,10 @@ class NativeActionReceiver : BroadcastReceiver() {
             if (!button.refresh() || !button.isVisibleToUser || !button.isEnabled ||
                 !button.isClickable || button.windowId != root.windowId)
                 return refuse("target-stale-or-disabled")
-            if (!SessionLease.isActive(context)) return refuse("automation-session-stopped")
+            if (v25) {
+                if (!TaskLeaseV25.authorizeClick(context, request))
+                    return refuse("v25-native-lease-expired-before-dispatch")
+            } else if (!SessionLease.isActive(context)) return refuse("automation-session-stopped")
 
             // Commit an at-most-once outcome before dispatch. The broadcast receiver
             // serializes main-thread requests; the journal survives process death.
@@ -156,6 +176,9 @@ class NativeActionReceiver : BroadcastReceiver() {
             result.put("status", "DISPATCH_UNCERTAIN")
                 .put("reason", "journal-committed-before-action")
             save(context, result)
+            if (v25 && !TaskLeaseV25.authorizeClick(context, request))
+                return result.put("status", "DISPATCH_UNCERTAIN")
+                    .put("reason", "lease-changed-after-journal")
             val accepted = button.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             return if (accepted) {
                 result.put("status", "DISPATCH_ACCEPTED_UNVERIFIED").put("reason", "action-click-accepted")
@@ -191,11 +214,22 @@ class NativeActionReceiver : BroadcastReceiver() {
                 .put("targetPackage", intent.getStringExtra("target_package") ?: "")
                 .put("selectorType", intent.getStringExtra("selector_type") ?: "")
                 .put("status", "REFUSED")
-                .put("reason", "v25-native-click-not-implemented")
+                .put("reason", "v25-native-lease-not-authorized")
                 .put("destinationVerified", false)
                 .put("coordinateTapUsed", false)
                 .put("observedAtEpochMs", System.currentTimeMillis())
-            save(context, result)
+            if (!TaskLeaseV25.authorizeClick(context, intent)) {
+                save(context, result)
+                return
+            }
+            // Reuse the exact-selector one-shot traversal, but retain schema-3
+            // identity and enforce the lease again immediately before dispatch.
+            val executed = try { execute(context, intent, true) }
+                catch (_: Exception) {
+                    result.put("status", "DISPATCH_UNCERTAIN")
+                        .put("reason", "v25-native-exception")
+                }
+            save(context, executed)
             return
         }
         val result = try { execute(context, intent) }
