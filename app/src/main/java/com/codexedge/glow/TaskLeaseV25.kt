@@ -17,6 +17,7 @@ internal object TaskLeaseV25 {
     private const val PREF = "tessera_v25_task_lease"
     private const val TIMEOUT_MS = 30_000L
     private const val PACKAGE = "dev.androidroute.benchmark"
+    // The receiver is fixed to this operation. Wire task_id is the task UUID.
     private const val TASK = "benchmark.open_guide"
     private const val PROTOCOL = "tessera.companion.fast-path.v2.5"
 
@@ -56,6 +57,7 @@ internal object TaskLeaseV25 {
             .put("requestId", state.optString("requestId"))
             .put("sessionId", state.optString("sessionId"))
             .put("ownerHash", state.optString("ownerHash"))
+            .put("ownerIdHash", state.optString("ownerHash"))
             .put("observedAtEpochMs", System.currentTimeMillis())
         val file = AtomicFile(File(c.filesDir, "task-lease-v25-result.json"))
         var stream: java.io.FileOutputStream? = null
@@ -73,14 +75,14 @@ internal object TaskLeaseV25 {
      */
     @Synchronized
     fun authorizeClick(c: Context, intent: Intent): Boolean {
-        val taskId = intent.getStringExtra("task_id") ?: ""
-        val taskUuid = intent.getStringExtra("task_uuid") ?: ""
+        val taskUuid = intent.getStringExtra("task_id") ?: ""
+        val taskId = TASK
         val requestId = intent.getStringExtra("request_id") ?: ""
         val sessionId = intent.getStringExtra("session_id") ?: ""
         val ownerId = intent.getStringExtra("owner_id") ?: ""
         val serial = intent.getStringExtra("device_serial") ?: ""
         if (intent.getStringExtra("protocol_id") != PROTOCOL ||
-            taskId != TASK || !uuid4(taskUuid) || !uuid4(requestId) ||
+            !uuid4(taskUuid) || !uuid4(requestId) ||
             !uuid4(sessionId) || !uuid4(ownerId) ||
             serial.isBlank() || serial.length > 128) return false
         val s = read(c)
@@ -97,8 +99,8 @@ internal object TaskLeaseV25 {
 
     @Synchronized
     fun handle(c: Context, action: String, intent: Intent) {
-        val taskId = intent.getStringExtra("task_id") ?: ""
-        val taskUuid = intent.getStringExtra("task_uuid") ?: ""
+        val taskUuid = intent.getStringExtra("task_id") ?: ""
+        val taskId = TASK
         val requestId = intent.getStringExtra("request_id") ?: ""
         val sessionId = intent.getStringExtra("session_id") ?: ""
         val ownerId = intent.getStringExtra("owner_id") ?: ""
@@ -106,7 +108,7 @@ internal object TaskLeaseV25 {
         val protocol = intent.getStringExtra("protocol_id") ?: ""
         val now = System.currentTimeMillis()
         val p = prefs(c)
-        if (protocol != PROTOCOL || taskId != TASK || !uuid4(taskUuid) ||
+        if (protocol != PROTOCOL || !uuid4(taskUuid) ||
             !uuid4(sessionId) || !uuid4(requestId) || !uuid4(ownerId) || deviceSerial.isBlank() ||
             deviceSerial.length > 128) {
             writeResult(c, action, "REFUSED", "invalid-task-lease-request")
