@@ -172,12 +172,21 @@ class NativeActionReceiver : BroadcastReceiver() {
         // fail closed without performing any Accessibility action.
         if (intent.getStringExtra("protocol_id") ==
             "tessera.companion.fast-path.v2.5") {
+            // This candidate does not execute v2.5 clicks. Never echo an
+            // unverified owner identity as if native ownership was proven.
+            val owner = intent.getStringExtra("owner_id") ?: ""
+            val ownerHash = if (owner.isNotEmpty()) {
+                java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(owner.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it) }
+            } else ""
             val result = JSONObject()
                 .put("schema", 3)
                 .put("protocolId", "tessera.companion.fast-path.v2.5")
                 .put("requestId", intent.getStringExtra("request_id") ?: "")
                 .put("taskId", intent.getStringExtra("task_id") ?: "")
                 .put("sessionId", intent.getStringExtra("session_id") ?: "")
+                .put("ownerHash", ownerHash)
                 .put("operation", "NATIVE_CLICK")
                 .put("targetPackage", intent.getStringExtra("target_package") ?: "")
                 .put("selectorType", intent.getStringExtra("selector_type") ?: "")
