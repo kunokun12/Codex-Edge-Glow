@@ -55,7 +55,7 @@ internal object StrictEnvelopeV1 {
 
     private val routeId = Regex("[a-z][a-z0-9._-]{0,63}")
     private val reason = Regex("[a-z][a-z0-9-]{0,63}")
-    private val pkg = Regex("[A-Za-z][A-Za-z0-9_]*(\\\\.[A-Za-z0-9_]+)+")
+    private val pkg = Regex("""[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+""")
     private fun validatePayload(type: String, payload: Map<*, *>) {
         val fields = when (type) {
             "route.promote" -> setOf("promotionRecord")
