@@ -105,38 +105,91 @@ class ScreenAccessService : AccessibilityService() {
         if (!windowChanged && now - lastWrite < 200) return
         captureSnapshot()
     }
+    /**
+     * Bounded snapshot with explicit one-window traversal completeness metadata.
+     * Existing legacy snapshot remains local to the debug app. This metadata
+     * does not authenticate the producer or establish task/session ownership.
+     */
     private fun captureSnapshot() {
-        val now = SystemClock.uptimeMillis()
+        val started = SystemClock.uptimeMillis()
         val root = rootInActiveWindow ?: return
-        lastWrite = now
+        lastWrite = started
+        val originalWindowId = root.windowId
+        val originalPackage = root.packageName?.toString() ?: ""
+        val maxNodes = 350
+        val maxDepth = 32
+        val maxDurationMs = 500L
+        val nodes = JSONArray()
+        val queue = ArrayDeque<Pair<AccessibilityNodeInfo, Int>>()
+        queue.add(Pair(root, 0))
+        var visited = 0
+        var observedDepth = 0
+        var truncationReason = ""
+        var collectionError = ""
         try {
-            val list = JSONArray()
-            val queue = ArrayDeque<AccessibilityNodeInfo>()
-            queue.add(root)
-            var count = 0
-            while (queue.isNotEmpty() && count < 350) {
-                val n = queue.removeFirst()
-                count++
-                val r = android.graphics.Rect()
-                n.getBoundsInScreen(r)
-                if (n.isVisibleToUser) {
-                    val o = JSONObject()
-                    o.put("text", n.text?.toString() ?: "")
-                    o.put("description", n.contentDescription?.toString() ?: "")
-                    o.put("resourceId", n.viewIdResourceName ?: "")
-                    o.put("className", n.className?.toString() ?: "")
-                    o.put("clickable", n.isClickable)
-                    o.put("enabled", n.isEnabled)
-                    o.put("bounds", JSONArray(listOf(r.left,r.top,r.right,r.bottom)))
-                    list.put(o)
+            while (queue.isNotEmpty()) {
+                if (visited >= maxNodes) {
+                    truncationReason = "node-limit"
+                    break
                 }
-                for (i in 0 until n.childCount) n.getChild(i)?.let { queue.add(it) }
+                if (SystemClock.uptimeMillis() - started >= maxDurationMs) {
+                    truncationReason = "time-limit"
+                    break
+                }
+                val (node, depth) = queue.removeFirst()
+                visited++
+                observedDepth = maxOf(observedDepth, depth)
+                if (node.isVisibleToUser) {
+                    val rect = android.graphics.Rect()
+                    node.getBoundsInScreen(rect)
+                    nodes.put(JSONObject()
+                        .put("text", node.text?.toString() ?: "")
+                        .put("description", node.contentDescription?.toString() ?: "")
+                        .put("resourceId", node.viewIdResourceName ?: "")
+                        .put("className", node.className?.toString() ?: "")
+                        .put("clickable", node.isClickable)
+                        .put("enabled", node.isEnabled)
+                        .put("bounds", JSONArray(listOf(rect.left, rect.top, rect.right, rect.bottom))))
+                }
+                if (node.childCount > 0 && depth >= maxDepth) {
+                    truncationReason = "depth-limit"
+                    break
+                }
+                for (i in 0 until node.childCount) {
+                    node.getChild(i)?.let { queue.add(Pair(it, depth + 1)) }
+                }
             }
-            val data = JSONObject().put("timestamp", System.currentTimeMillis())
-                .put("capturedAtUptimeMs", now)
-                .put("windowId", root.windowId)
-                .put("package", root.packageName?.toString() ?: "")
-                .put("nodes", list)
+        } catch (_: Exception) {
+            collectionError = "traversal-exception"
+        }
+        try {
+            val after = rootInActiveWindow
+            val stableWindow = after != null && after.windowId == originalWindowId &&
+                after.packageName?.toString() == originalPackage
+            val durationMs = SystemClock.uptimeMillis() - started
+            val complete = collectionError.isEmpty() && truncationReason.isEmpty() &&
+                queue.isEmpty() && stableWindow && durationMs < maxDurationMs
+            val data = JSONObject()
+                .put("timestamp", System.currentTimeMillis())
+                .put("capturedAtUptimeMs", started)
+                .put("windowId", originalWindowId)
+                .put("windowIdAfter", after?.windowId ?: -1)
+                .put("windowStable", stableWindow)
+                .put("package", originalPackage)
+                .put("nodes", nodes)
+                .put("snapshotId", java.util.UUID.randomUUID().toString())
+                .put("traversalVisitedNodeCount", visited)
+                .put("returnedNodeCount", nodes.length())
+                .put("traversalMaxObservedDepth", observedDepth)
+                .put("traversalNodeLimit", maxNodes)
+                .put("traversalDepthLimit", maxDepth)
+                .put("traversalTimeBudgetMs", maxDurationMs)
+                .put("traversalDurationMs", durationMs)
+                .put("truncationReason", truncationReason)
+                .put("collectionError", collectionError)
+                .put("collectionSucceeded", collectionError.isEmpty())
+                .put("treeComplete", complete)
+                .put("completenessScope", "one-accessible-active-window")
             val tmp = File(filesDir, "ui-snapshot.tmp")
             tmp.writeText(data.toString())
             val target = File(filesDir, "ui-snapshot.json")
