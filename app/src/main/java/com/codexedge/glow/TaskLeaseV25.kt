@@ -98,6 +98,51 @@ internal object TaskLeaseV25 {
             s.optString("deviceSerialHash") == hash(serial)
     }
 
+    /** Read-only, owner-correlated current state. Never renews the lease. */
+    @Synchronized
+    fun inspect(c: Context, intent: Intent) {
+        val taskUuid = intent.getStringExtra("task_id") ?: ""
+        val requestId = intent.getStringExtra("request_id") ?: ""
+        val sessionId = intent.getStringExtra("session_id") ?: ""
+        val owner = intent.getStringExtra("owner_id") ?: ""
+        val serial = intent.getStringExtra("device_serial") ?: ""
+        val state = read(c)
+        val now = System.currentTimeMillis()
+        val last = state.optLong("lastHeartbeatEpochMs")
+        val same = intent.getStringExtra("protocol_id") == PROTOCOL &&
+            uuid4(taskUuid) && uuid4(requestId) && uuid4(sessionId) &&
+            uuid4(owner) && serial.isNotBlank() && serial.length <= 128 &&
+            state.optString("taskUuid") == taskUuid &&
+            state.optString("requestId") == requestId &&
+            state.optString("sessionId") == sessionId &&
+            state.optString("ownerHash") == hash(owner) &&
+            state.optString("deviceSerialHash") == hash(serial)
+        val active = same && state.optBoolean("active") &&
+            last > 0 && now >= last && now - last < TIMEOUT_MS
+        val result = JSONObject()
+            .put("schema", 3).put("protocolId", PROTOCOL)
+            .put("operation", "TASK_READ_V25")
+            .put("status", if (active) "ACTIVE" else "REFUSED")
+            .put("reason", if (active) "lease-active-at-observation" else "lease-not-owned-or-expired")
+            .put("taskName", TASK)
+            .put("taskId", taskUuid).put("taskUuid", taskUuid)
+            .put("requestId", requestId).put("sessionId", sessionId)
+            .put("ownerIdHash", if (uuid4(owner)) hash(owner) else "")
+            .put("ownerHash", if (uuid4(owner)) hash(owner) else "")
+            .put("deviceSerialHash", if (same) state.optString("deviceSerialHash") else "")
+            .put("observedAtEpochMs", now)
+            .put("ownershipAuthenticated", false)
+        val file = AtomicFile(File(c.filesDir, "task-lease-v25-read.json"))
+        var stream: java.io.FileOutputStream? = null
+        try {
+            stream = file.startWrite()
+            stream.write(result.toString().toByteArray(Charsets.UTF_8))
+            file.finishWrite(stream)
+        } catch (_: Exception) {
+            if (stream != null) file.failWrite(stream)
+        }
+    }
+
     @Synchronized
     fun handle(c: Context, action: String, intent: Intent) {
         val taskUuid = intent.getStringExtra("task_id") ?: ""
