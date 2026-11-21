@@ -108,9 +108,98 @@ internal object StrictEnvelopeV1 {
         if ("maxEvents" in fields) number("maxEvents", 1, 256)
         if ("executionRequestId" in fields) string("executionRequestId", uuid4)
         if ("reason" in fields) string("reason", reason)
-        if ("routeDefinition" in fields) require(payload["routeDefinition"] is Map<*, *>)
-        if ("promotionRecord" in fields) require(payload["promotionRecord"] is Map<*, *>)
-        if ("revocationRecord" in fields) require(payload["revocationRecord"] is Map<*, *>)
+        if ("routeDefinition" in fields) validateRoute(payload["routeDefinition"])
+        if ("promotionRecord" in fields) validatePromotion(payload["promotionRecord"])
+        if ("revocationRecord" in fields) validateRevocation(payload["revocationRecord"])
+    }
+
+
+    // Closed M1 nested request schemas. These checks establish shape only;
+    // signature, fingerprint, epoch and registry authorization are separate gates.
+    private val authorityId = Regex("[a-z0-9][a-z0-9._-]{0,63}")
+    private val signature = Regex("[A-Za-z0-9_-]{80,2048}")
+
+    private fun obj(value: Any?, vararg keys: String): Map<*, *> {
+        require(value is Map<*, *> && value.keys == keys.toSet()) {
+            "Missing or unexpected nested fields"
+        }
+        return value
+    }
+    private fun str(obj: Map<*, *>, key: String, pattern: Regex) {
+        require((obj[key] as? String)?.let(pattern::matches) == true) { "Invalid $key" }
+    }
+    private fun bounded(obj: Map<*, *>, key: String, min: Int, max: Int) {
+        val value = obj[key] as? String
+        require(value != null && value.codePointCount(0, value.length) in min..max) {
+            "Invalid $key length"
+        }
+    }
+    private fun positive(obj: Map<*, *>, key: String) {
+        require((obj[key] as? Long)?.let { it >= 1 } == true) { "Invalid $key" }
+    }
+    private fun state(value: Any?) {
+        val o = obj(value, "stateFingerprint", "requiredMarkers")
+        str(o, "stateFingerprint", hex64)
+        val markers = o["requiredMarkers"] as? List<*> ?: error("Invalid requiredMarkers")
+        require(markers.isNotEmpty() && markers.size == markers.toSet().size) {
+            "Invalid requiredMarkers cardinality"
+        }
+        markers.forEach {
+            require(it is String && it.codePointCount(0, it.length) in 1..120) {
+                "Invalid marker"
+            }
+        }
+    }
+    private fun validateRoute(value: Any?) {
+        val o = obj(value, "packageName", "appConstraint", "origin", "destination",
+            "windowPolicy", "steps")
+        str(o, "packageName", pkg)
+        val app = obj(o["appConstraint"], "versionName", "versionCode", "signerCertificateSha256")
+        bounded(app, "versionName", 1, 128)
+        positive(app, "versionCode")
+        str(app, "signerCertificateSha256", hex64)
+        state(o["origin"])
+        state(o["destination"])
+        require(o["windowPolicy"] == "same_window")
+        val steps = o["steps"] as? List<*> ?: error("Invalid steps")
+        require(steps.size in 1..32) { "Invalid step count" }
+        steps.forEach { item ->
+            val step = obj(item, "stepId", "selector", "uniquenessPolicy",
+                "expectedBefore", "expectedAfter")
+            str(step, "stepId", routeId)
+            val selector = obj(step["selector"], "kind", "value")
+            require(selector["kind"] in setOf("text", "contentDescription", "resourceId"))
+            bounded(selector, "value", 1, 256)
+            require(step["uniquenessPolicy"] == "exactly_one_actionable_target")
+            state(step["expectedBefore"])
+            state(step["expectedAfter"])
+        }
+    }
+    private fun validatePromotion(value: Any?) {
+        val o = obj(value, "authorityKeyId", "registryEpoch", "issuedAtEpochMs",
+            "expiresAtEpochMs", "routeId", "routeVersion", "routeFingerprint",
+            "routeDefinition", "signature")
+        str(o, "authorityKeyId", authorityId)
+        positive(o, "registryEpoch")
+        positive(o, "issuedAtEpochMs")
+        positive(o, "expiresAtEpochMs")
+        str(o, "routeId", routeId)
+        positive(o, "routeVersion")
+        str(o, "routeFingerprint", hex64)
+        validateRoute(o["routeDefinition"])
+        str(o, "signature", signature)
+    }
+    private fun validateRevocation(value: Any?) {
+        val o = obj(value, "authorityKeyId", "registryEpoch", "issuedAtEpochMs",
+            "routeId", "routeVersion", "routeFingerprint", "reasonCode", "signature")
+        str(o, "authorityKeyId", authorityId)
+        positive(o, "registryEpoch")
+        positive(o, "issuedAtEpochMs")
+        str(o, "routeId", routeId)
+        positive(o, "routeVersion")
+        str(o, "routeFingerprint", hex64)
+        str(o, "reasonCode", reason)
+        str(o, "signature", signature)
     }
 
     private fun validScalars(s: String): Boolean {
