@@ -3,6 +3,9 @@ package com.codexedge.glow.fastpathv1
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import java.io.StringReader
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.StandardCharsets
 import java.text.Normalizer
 import java.util.UUID
 
@@ -25,6 +28,24 @@ internal object StrictEnvelopeV1 {
     private val hex64 = Regex("[0-9a-f]{64}")
     private const val MAX_SAFE = 9007199254740991L
 
+    /**
+     * Strict transport entry point. A receiver must use this on decoded base64url bytes,
+     * never String(bytes) which silently replaces malformed UTF-8.
+     * The clock parameter is the Companion's wall clock at admission.
+     */
+    fun parseTransport(bytes: ByteArray, nowEpochMs: Long): Map<String, Any?> {
+        require(bytes.size <= MAX_BYTES) { "Envelope too large" }
+        val decoder = StandardCharsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+        val json = decoder.decode(ByteBuffer.wrap(bytes)).toString()
+        val envelope = parse(json)
+        val expires = envelope["expiresAtEpochMs"] as Long
+        require(nowEpochMs >= 0 && expires > nowEpochMs &&
+            expires - nowEpochMs <= 300000L) { "Expired or excessive request TTL" }
+        return envelope
+    }
+
     fun parse(json: String): Map<String, Any?> {
         require(json.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Envelope too large" }
         val reader = JsonReader(StringReader(json))
@@ -43,7 +64,7 @@ internal object StrictEnvelopeV1 {
         }
         val binding = envelope["deviceBinding"] as? Map<*, *> ?: error("Missing deviceBinding")
         require(binding.keys == deviceKeys) { "Invalid deviceBinding members" }
-        require((binding["deviceSerial"] as? String)?.length in 1..128)
+        require((binding["deviceSerial"] as? String)?.codePointCount(0, (binding["deviceSerial"] as? String)?.length ?: 0) in 1..128)
         require(binding["companionPackage"] == "com.codexedge.glow")
         require((binding["companionVersionCode"] as? Long)?.let { it > 0 } == true)
         require((binding["signerCertificateSha256"] as? String)?.let { hex64.matches(it) } == true)
@@ -62,7 +83,8 @@ internal object StrictEnvelopeV1 {
             "route.revoke" -> setOf("revocationRecord")
             "route.execute" -> setOf("routeId", "routeVersion", "routeFingerprint", "routeDefinition")
             "route.cancel" -> setOf("reason")
-            "route.status" -> setOf("routeId", "routeVersion", "routeFingerprint", "maxAgeMs")
+            "route.status" -> setOf("routeId", "routeVersion", "routeFingerprint", "maxAgeMs",
+                "afterSequence", "afterDigest", "maxEvents")
             "evidence.capture" -> setOf("expectedPackage", "expectedWindowId", "maxAgeMs", "maxNodes")
             "route.verify" -> setOf("executionRequestId", "routeId", "routeVersion", "routeFingerprint",
                 "expectedDestinationFingerprint", "expectedPackage", "expectedWindowId", "maxAgeMs")
@@ -81,6 +103,9 @@ internal object StrictEnvelopeV1 {
         if ("expectedWindowId" in fields) number("expectedWindowId", 0)
         if ("maxAgeMs" in fields) number("maxAgeMs", 1, 2500)
         if ("maxNodes" in fields) number("maxNodes", 1, 4096)
+        if ("afterSequence" in fields) number("afterSequence", 0)
+        if ("afterDigest" in fields) string("afterDigest", hex64)
+        if ("maxEvents" in fields) number("maxEvents", 1, 256)
         if ("executionRequestId" in fields) string("executionRequestId", uuid4)
         if ("reason" in fields) string("reason", reason)
         if ("routeDefinition" in fields) require(payload["routeDefinition"] is Map<*, *>)
