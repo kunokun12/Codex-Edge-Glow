@@ -51,7 +51,7 @@ internal object CanonicalRouteV1 {
             i += Character.charCount(ac)
             j += Character.charCount(bc)
         }
-        return (a.length - i).compareTo(b.length - j)
+        return when { i == a.length && j == b.length -> 0; i == a.length -> -1; else -> 1 }
     }
 
     private fun quote(value: String): String = buildString {
