@@ -12,6 +12,15 @@ import android.provider.Settings
 class GlowReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
+            "com.codexedge.glow.TASK_ACQUIRE_V25" -> {
+                TaskLeaseV25.handle(context, "TASK_ACQUIRE_V25", intent)
+            }
+            "com.codexedge.glow.TASK_PING_V25" -> {
+                TaskLeaseV25.handle(context, "TASK_PING_V25", intent)
+            }
+            "com.codexedge.glow.TASK_STOP_V25" -> {
+                TaskLeaseV25.handle(context, "TASK_STOP_V25", intent)
+            }
             "com.codexedge.glow.STOP" -> {
                 SessionLease.stop(context, "explicit_stop")
                 context.stopService(Intent(context, GlowService::class.java))
