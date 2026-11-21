@@ -13,8 +13,8 @@ android {
         applicationId = "com.codexedge.glow"
         minSdk = 26
         targetSdk = 28
-        versionCode = 11
-        versionName = "2.5.1-exception-safety-candidate"
+        versionCode = 12
+        versionName = "2.5.2-task-lease-foundation-candidate"
     }
 
     // The APK must remain debuggable for the existing local run-as based MCP
