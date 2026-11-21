@@ -199,7 +199,7 @@ internal object StrictEnvelopeV1 {
         val definition = record["routeDefinition"] as Map<String, Any?>
         val expected = CanonicalRouteV1.fingerprint(
             record["routeId"] as String,
-            Math.toIntExact(record["routeVersion"] as Long),
+            record["routeVersion"] as Long,
             definition
         )
         require(record["routeFingerprint"] == expected) { "Route fingerprint mismatch" }
