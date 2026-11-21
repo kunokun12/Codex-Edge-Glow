@@ -9,11 +9,14 @@ import java.text.Normalizer
  * Callers must first parse JSON with a strict duplicate-key/UTF-8 validator.
  */
 internal object CanonicalRouteV1 {
+    private const val MAX_SAFE_INTEGER = 9007199254740991L
+
     fun encode(value: Any?): String = when (value) {
         null -> "null"
         is String -> quote(Normalizer.normalize(value, Normalizer.Form.NFC))
         is Boolean -> value.toString()
-        is Byte, is Short, is Int, is Long -> value.toString()
+        is Byte, is Short, is Int -> value.toString()
+        is Long -> { require(value in -MAX_SAFE_INTEGER..MAX_SAFE_INTEGER) { "Integer outside JSON safe range" }; value.toString() }
         is Float, is Double, is java.math.BigDecimal -> error("Non-integer JSON number")
         is List<*> -> value.joinToString(prefix = "[", postfix = "]", separator = ",") { encode(it) }
         is Map<*, *> -> {
