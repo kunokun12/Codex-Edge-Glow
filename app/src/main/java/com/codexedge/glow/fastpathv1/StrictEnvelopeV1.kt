@@ -222,13 +222,14 @@ internal object StrictEnvelopeV1 {
         return when (reader.peek()) {
             JsonToken.BEGIN_OBJECT -> {
                 val out = linkedMapOf<String, Any?>()
+                val normalizedKeys = mutableSetOf<String>()
                 reader.beginObject()
                 while (reader.hasNext()) {
                     val key = reader.nextName()
                     require(validScalars(key)) { "Invalid Unicode object key" }
                     val normalized = Normalizer.normalize(key, Normalizer.Form.NFC)
-                    require(!out.containsKey(normalized)) { "Duplicate JSON member" }
-                    out[normalized] = readValue(reader, depth + 1)
+                    require(normalizedKeys.add(normalized)) { "Duplicate JSON member after NFC" }
+                    out[key] = readValue(reader, depth + 1)
                 }
                 reader.endObject()
                 out
@@ -243,7 +244,7 @@ internal object StrictEnvelopeV1 {
             JsonToken.STRING -> {
                 val value = reader.nextString()
                 require(validScalars(value)) { "Invalid Unicode surrogate" }
-                Normalizer.normalize(value, Normalizer.Form.NFC)
+                value // Validate M1 schema on original Unicode; NFC only in canonical hashing.
             }
             JsonToken.NUMBER -> {
                 val raw = reader.nextString()
