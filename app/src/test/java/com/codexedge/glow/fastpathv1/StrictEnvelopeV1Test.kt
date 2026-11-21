@@ -173,4 +173,37 @@ class StrictEnvelopeV1Test {
         }
     }
 
+    @Test fun schemaLengthUsesRawCodePointsBeforeNfc() {
+        val decomposed = "e\u0301".repeat(65)
+        val payload = """{"routeId":"benchmark.open_guide","routeVersion":1,
+            "routeFingerprint":"$hash","routeDefinition":""" +
+            routeDefinition.replace("\"versionName\":\"1.0\"",
+                "\"versionName\":\"$decomposed\"") + "}"
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(envelope("route.execute", payload))
+        }
+    }
+
+    @Test fun nfcEquivalentJsonKeysAreRejectedBeforeSchemaValidation() {
+        val altered = base.replace("\"deviceSerial\":\"fixture-device\"",
+            "\"deviceSerial\":\"fixture-device\",\"de\u0301vice\":\"x\",\"dévice\":\"y\"")
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(altered)
+        }
+    }
+
+    @Test fun canonicalFingerprintNormalizesEquivalentRouteStrings() {
+        val decomposed = routeDefinition.replace("Guide", "Guide\u0301")
+        val composed = routeDefinition.replace("Guide", "Guidé")
+        val payloadPrefix = """{"routeId":"benchmark.open_guide","routeVersion":1,
+            "routeFingerprint":"$hash","routeDefinition":"""
+        val b = StrictEnvelopeV1.parse(envelope("route.execute", payloadPrefix + decomposed + "}"))
+        val c = StrictEnvelopeV1.parse(envelope("route.execute", payloadPrefix + composed + "}"))
+        @Suppress("UNCHECKED_CAST")
+        fun digest(v: Map<String, Any?>) = CanonicalRouteV1.fingerprint(
+            "benchmark.open_guide", 1,
+            (v["payload"] as Map<String, Any?>)["routeDefinition"] as Map<String, Any?>)
+        assertEquals(digest(b), digest(c))
+    }
+
 }
