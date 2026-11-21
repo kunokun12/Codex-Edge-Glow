@@ -42,6 +42,7 @@
                 <action android:name="com.codexedge.glow.TASK_ACQUIRE_V25"/>
                 <action android:name="com.codexedge.glow.TASK_PING_V25"/>
                 <action android:name="com.codexedge.glow.TASK_STOP_V25"/>
+                <action android:name="com.codexedge.glow.TASK_READ_V25"/>
             </intent-filter>
         </receiver>
     </application>
