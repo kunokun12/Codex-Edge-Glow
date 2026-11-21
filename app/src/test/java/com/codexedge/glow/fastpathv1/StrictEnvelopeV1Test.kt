@@ -124,10 +124,32 @@ class StrictEnvelopeV1Test {
             "expectedBefore":{"stateFingerprint":"$hash","requiredMarkers":["Home"]},
             "expectedAfter":{"stateFingerprint":"$hash","requiredMarkers":["Guide"]}}]}
     """.trimIndent()
-    private fun envelope(type: String, payload: String): String =
-        base.replace("\"messageType\":\"route.status\"", "\"messageType\":\"$type\"")
+    private fun jsonToKotlin(node: com.google.gson.JsonElement): Any? = when {
+        node.isJsonNull -> null
+        node.isJsonObject -> node.asJsonObject.entrySet().associate { it.key to jsonToKotlin(it.value) }
+        node.isJsonArray -> node.asJsonArray.map { jsonToKotlin(it) }
+        node.asJsonPrimitive.isBoolean -> node.asBoolean
+        node.asJsonPrimitive.isNumber -> node.asLong
+        else -> node.asString
+    }
+
+    private fun envelope(type: String, payload: String): String {
+        var content = payload
+        if (type == "route.execute" || type == "route.promote") {
+            val root = com.google.gson.JsonParser.parseString(payload).asJsonObject
+            val record = if (type == "route.promote") root.getAsJsonObject("promotionRecord") else root
+            val definition = jsonToKotlin(record.get("routeDefinition"))
+            @Suppress("UNCHECKED_CAST")
+            val calculated = CanonicalRouteV1.fingerprint(
+                record.get("routeId").asString, record.get("routeVersion").asInt,
+                definition as Map<String, Any?>)
+            content = payload.replace("\"routeFingerprint\":\"$hash\"",
+                "\"routeFingerprint\":\"$calculated\"")
+        }
+        return base.replace("\"messageType\":\"route.status\"", "\"messageType\":\"$type\"")
             .replace(Regex("\"payload\":\\{.*\\}\\s*\\}$", RegexOption.DOT_MATCHES_ALL),
-                "\"payload\":$payload}")
+                "\"payload\":$content}")
+    }
 
     @Test fun nestedRouteAcceptsExactSchemaAndRejectsUnknownFields() {
         val payload = """{"routeId":"benchmark.open_guide","routeVersion":1,
@@ -204,6 +226,18 @@ class StrictEnvelopeV1Test {
             "benchmark.open_guide", 1,
             (v["payload"] as Map<String, Any?>)["routeDefinition"] as Map<String, Any?>)
         assertEquals(digest(b), digest(c))
+    }
+
+    @Test fun routeExecuteRejectsIncorrectFingerprint() {
+        val payload = """{"routeId":"benchmark.open_guide","routeVersion":1,
+            "routeFingerprint":"$hash","routeDefinition":$routeDefinition}"""
+        val valid = envelope("route.execute", payload)
+        assertEquals("route.execute", StrictEnvelopeV1.parse(valid)["messageType"])
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(valid.replace(
+                Regex("\"routeFingerprint\":\"[0-9a-f]{64}\""),
+                "\"routeFingerprint\":\"0000000000000000000000000000000000000000000000000000000000000000\""))
+        }
     }
 
 }
