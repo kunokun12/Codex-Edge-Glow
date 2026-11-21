@@ -39,6 +39,9 @@
                 <action android:name="com.codexedge.glow.STOP"/>
                 <action android:name="com.codexedge.glow.PING"/>
                 <action android:name="com.codexedge.glow.STATUS"/>
+                <action android:name="com.codexedge.glow.TASK_ACQUIRE_V25"/>
+                <action android:name="com.codexedge.glow.TASK_PING_V25"/>
+                <action android:name="com.codexedge.glow.TASK_STOP_V25"/>
             </intent-filter>
         </receiver>
     </application>
