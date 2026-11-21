@@ -169,8 +169,15 @@ class NativeActionReceiver : BroadcastReceiver() {
         if (intent.action != ACTION) return
         val result = try { execute(context, intent) }
             catch (_: Exception) {
+                // An exception may have occurred after ACTION_CLICK was handed
+                // to Android. Preserve available request identity, but NEVER
+                // assert verified owner/session correlation or an action outcome.
+                // The schema-2 host must treat this as uncertain, never retry it.
                 JSONObject().put("schema", 2)
                     .put("requestId", intent.getStringExtra("request_id") ?: "")
+                    .put("operation", "NATIVE_CLICK")
+                    .put("targetPackage", intent.getStringExtra("target_package") ?: "")
+                    .put("selectorType", intent.getStringExtra("selector_type") ?: "")
                     .put("status", "DISPATCH_UNCERTAIN")
                     .put("reason", "native-exception")
                     .put("destinationVerified", false)
