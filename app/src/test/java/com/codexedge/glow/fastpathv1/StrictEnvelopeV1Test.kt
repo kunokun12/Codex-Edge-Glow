@@ -19,7 +19,7 @@ class StrictEnvelopeV1Test {
         "signerCertificateSha256":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
       },
       "expiresAtEpochMs":1790000000000,
-      "payload":{}
+      "payload":{"routeId":"benchmark.open_guide","routeVersion":1,"routeFingerprint":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","maxAgeMs":1000}
     }""".trimIndent()
 
     @Test fun acceptsWellFormedEnvelope() {
@@ -37,10 +37,20 @@ class StrictEnvelopeV1Test {
 
     @Test fun rejectsDuplicateAndUnknownMembers() {
         assertThrows(IllegalArgumentException::class.java) {
-            StrictEnvelopeV1.parse(base.replace("\"payload\":{}", "\"payload\":{},\"payload\":{}"))
+            StrictEnvelopeV1.parse(base.replace("\"messageType\":\"route.status\"",
+                "\"messageType\":\"route.status\",\"messageType\":\"route.status\""))
         }
         assertThrows(IllegalArgumentException::class.java) {
-            StrictEnvelopeV1.parse(base.replace("\"payload\":{}", "\"payload\":{},\"extra\":1"))
+            StrictEnvelopeV1.parse(base.replace("\"payload\":", "\"extra\":1,\"payload\":"))
+        }
+    }
+
+    @Test fun rejectsMissingAndExtraPayloadFields() {
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(base.replace("\"routeId\":\"benchmark.open_guide\",", ""))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(base.replace("\"maxAgeMs\":1000", "\"maxAgeMs\":1000,\"unknown\":true"))
         }
     }
 
