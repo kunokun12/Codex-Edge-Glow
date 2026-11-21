@@ -31,8 +31,11 @@ internal object CanonicalRouteV1 {
         else -> error("Unsupported canonical JSON type: ${value::class.java.name}")
     }
 
-    fun fingerprint(routeId: String, routeVersion: Int, routeDefinition: Map<String, Any?>): String {
-        require(routeVersion > 0)
+    fun fingerprint(routeId: String, routeVersion: Int, routeDefinition: Map<String, Any?>): String =
+        fingerprint(routeId, routeVersion.toLong(), routeDefinition)
+
+    fun fingerprint(routeId: String, routeVersion: Long, routeDefinition: Map<String, Any?>): String {
+        require(routeVersion in 1..MAX_SAFE_INTEGER)
         val canonical = encode(mapOf(
             "fingerprintVersion" to "tessera.route-canonical/1",
             "routeId" to routeId,
