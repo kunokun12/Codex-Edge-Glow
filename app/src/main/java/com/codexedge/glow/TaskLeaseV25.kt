@@ -11,7 +11,7 @@ import java.util.UUID
 /**
  * Isolated candidate fixed-task lease. DUMP-protected broadcast access is NOT
  * independently cryptographic host authentication. Never authorizes legacy
- * NATIVE_CLICK; future protocol v2.5 receiver must validate this lease.
+ * NATIVE_CLICK; v2.5 actions must validate this exact lease before dispatch.
  */
 internal object TaskLeaseV25 {
     private const val PREF = "tessera_v25_task_lease"
@@ -66,6 +66,33 @@ internal object TaskLeaseV25 {
         } catch (_: Exception) {
             if (stream != null) file.failWrite(stream)
         }
+    }
+
+    /** Exact, unexpired owner/task/request/session/device lease authorization.
+     * Caller-supplied identifiers are correlation, not caller authentication.
+     */
+    @Synchronized
+    fun authorizeClick(c: Context, intent: Intent): Boolean {
+        val taskId = intent.getStringExtra("task_id") ?: ""
+        val taskUuid = intent.getStringExtra("task_uuid") ?: ""
+        val requestId = intent.getStringExtra("request_id") ?: ""
+        val sessionId = intent.getStringExtra("session_id") ?: ""
+        val ownerId = intent.getStringExtra("owner_id") ?: ""
+        val serial = intent.getStringExtra("device_serial") ?: ""
+        if (intent.getStringExtra("protocol_id") != PROTOCOL ||
+            taskId != TASK || !uuid4(taskUuid) || !uuid4(requestId) ||
+            !uuid4(sessionId) || !uuid4(ownerId) ||
+            serial.isBlank() || serial.length > 128) return false
+        val s = read(c)
+        val now = System.currentTimeMillis()
+        val last = s.optLong("lastHeartbeatEpochMs")
+        return s.optBoolean("active") && last > 0L && now >= last &&
+            now - last < TIMEOUT_MS && s.optString("taskId") == taskId &&
+            s.optString("taskUuid") == taskUuid &&
+            s.optString("requestId") == requestId &&
+            s.optString("sessionId") == sessionId &&
+            s.optString("ownerHash") == hash(ownerId) &&
+            s.optString("deviceSerialHash") == hash(serial)
     }
 
     @Synchronized
