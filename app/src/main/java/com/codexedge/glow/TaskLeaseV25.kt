@@ -36,6 +36,7 @@ internal object TaskLeaseV25 {
             .put("active", p.getBoolean("active", false))
             .put("taskId", p.getString("taskId", ""))
             .put("taskUuid", p.getString("taskUuid", ""))
+            .put("requestId", p.getString("requestId", ""))
             .put("sessionId", p.getString("sessionId", ""))
             .put("ownerHash", p.getString("ownerHash", ""))
             .put("deviceSerialHash", p.getString("deviceSerialHash", ""))
@@ -52,6 +53,7 @@ internal object TaskLeaseV25 {
             .put("reason", reason)
             .put("taskId", state.optString("taskId"))
             .put("taskUuid", state.optString("taskUuid"))
+            .put("requestId", state.optString("requestId"))
             .put("sessionId", state.optString("sessionId"))
             .put("ownerHash", state.optString("ownerHash"))
             .put("observedAtEpochMs", System.currentTimeMillis())
@@ -70,6 +72,7 @@ internal object TaskLeaseV25 {
     fun handle(c: Context, action: String, intent: Intent) {
         val taskId = intent.getStringExtra("task_id") ?: ""
         val taskUuid = intent.getStringExtra("task_uuid") ?: ""
+        val requestId = intent.getStringExtra("request_id") ?: ""
         val sessionId = intent.getStringExtra("session_id") ?: ""
         val ownerId = intent.getStringExtra("owner_id") ?: ""
         val deviceSerial = intent.getStringExtra("device_serial") ?: ""
@@ -77,7 +80,7 @@ internal object TaskLeaseV25 {
         val now = System.currentTimeMillis()
         val p = prefs(c)
         if (protocol != PROTOCOL || taskId != TASK || !uuid4(taskUuid) ||
-            !uuid4(sessionId) || !uuid4(ownerId) || deviceSerial.isBlank() ||
+            !uuid4(sessionId) || !uuid4(requestId) || !uuid4(ownerId) || deviceSerial.isBlank() ||
             deviceSerial.length > 128) {
             writeResult(c, action, "REFUSED", "invalid-task-lease-request")
             return
@@ -90,6 +93,7 @@ internal object TaskLeaseV25 {
         val valid = active && last > 0 && now >= last && now - last < TIMEOUT_MS
         val same = existing.optString("taskId") == taskId &&
             existing.optString("taskUuid") == taskUuid &&
+            existing.optString("requestId") == requestId &&
             existing.optString("sessionId") == sessionId &&
             existing.optString("ownerHash") == ownerHash &&
             existing.optString("deviceSerialHash") == serialHash
@@ -105,6 +109,7 @@ internal object TaskLeaseV25 {
                 val ok = p.edit().putBoolean("active", true)
                     .putString("taskId", taskId)
                     .putString("taskUuid", taskUuid)
+                    .putString("requestId", requestId)
                     .putString("sessionId", sessionId)
                     .putString("ownerHash", ownerHash)
                     .putString("deviceSerialHash", serialHash)
