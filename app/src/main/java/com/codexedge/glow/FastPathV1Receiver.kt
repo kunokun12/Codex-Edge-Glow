@@ -29,8 +29,10 @@ class FastPathV1Receiver : BroadcastReceiver() {
             "REJECTED"
         }
         // Broadcast acknowledgement only. Never claim accepted or executed.
-        resultCode = android.app.Activity.RESULT_CANCELED
-        resultData = result
+        if (isOrderedBroadcast) {
+            resultCode = android.app.Activity.RESULT_CANCELED
+            resultData = result
+        }
     }
 
     companion object {
