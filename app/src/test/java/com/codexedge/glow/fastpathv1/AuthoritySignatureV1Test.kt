@@ -60,4 +60,51 @@ class AuthoritySignatureV1Test {
             .withoutPadding().encodeToString(signer.sign()))
         assertFalse(AuthoritySignatureV1.verify(record, mapOf("test-root" to pair.public)))
     }
+    @Test fun signedPromotionVerifiesAndRejectsTamperedSignatureBytes() {
+        val generator = KeyPairGenerator.getInstance("RSA")
+        generator.initialize(3072)
+        val pair = generator.generateKeyPair()
+        val hash = "a".repeat(64)
+        val route = linkedMapOf<String, Any?>(
+            "packageName" to "dev.androidroute.benchmark",
+            "appConstraint" to mapOf(
+                "versionName" to "1.0", "versionCode" to 1L,
+                "signerCertificateSha256" to hash),
+            "origin" to mapOf("stateFingerprint" to hash, "requiredMarkers" to listOf("Home")),
+            "destination" to mapOf("stateFingerprint" to hash, "requiredMarkers" to listOf("Guide")),
+            "windowPolicy" to "same_window",
+            "steps" to listOf(mapOf(
+                "stepId" to "open-guide",
+                "selector" to mapOf("kind" to "text", "value" to "Guide"),
+                "uniquenessPolicy" to "exactly_one_actionable_target",
+                "expectedBefore" to mapOf("stateFingerprint" to hash, "requiredMarkers" to listOf("Home")),
+                "expectedAfter" to mapOf("stateFingerprint" to hash, "requiredMarkers" to listOf("Guide")))))
+        val fingerprint = CanonicalRouteV1.fingerprint("benchmark.open_guide", 1L, route)
+        val unsigned = linkedMapOf<String, Any?>(
+            "authorityKeyId" to "test-root",
+            "registryEpoch" to 1L,
+            "issuedAtEpochMs" to 1790000000000L,
+            "expiresAtEpochMs" to 1790000001000L,
+            "routeId" to "benchmark.open_guide",
+            "routeVersion" to 1L,
+            "routeFingerprint" to fingerprint,
+            "routeDefinition" to route)
+        val signer = Signature.getInstance("RSASSA-PSS")
+        signer.initSign(pair.private)
+        signer.setParameter(params)
+        signer.update(CanonicalRouteV1.encode(unsigned).toByteArray(Charsets.UTF_8))
+        val originalBytes = signer.sign()
+        val record = unsigned + ("signature" to Base64.getUrlEncoder()
+            .withoutPadding().encodeToString(originalBytes))
+        val keys = mapOf("test-root" to pair.public)
+        assertTrue(AuthoritySignatureV1.verify(record, keys))
+        val changed = originalBytes.copyOf()
+        changed[changed.size / 2] = (changed[changed.size / 2].toInt() xor 1).toByte()
+        val tampered = record + ("signature" to Base64.getUrlEncoder()
+            .withoutPadding().encodeToString(changed))
+        assertFalse(AuthoritySignatureV1.verify(tampered, keys))
+        assertFalse(AuthoritySignatureV1.verify(
+            record + ("routeFingerprint" to "b".repeat(64)), keys))
+    }
+
 }
