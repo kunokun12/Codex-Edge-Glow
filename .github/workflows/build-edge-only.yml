@@ -80,12 +80,30 @@ jobs:
           SDK_APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           "$SDK_APKSIGNER" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/apk-verify.txt"
           grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' "$RUNNER_TEMP/apk-verify.txt"
+      - name: Record APK build provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-provenance
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          {
+            echo "source_commit=$(git rev-parse HEAD)"
+            echo "source_branch=${GITHUB_REF_NAME}"
+            echo "package=com.codexedge.glow"
+            echo "version_name=2.5.1-exception-safety-candidate"
+            echo "version_code=11"
+            echo "build_variant=debug"
+            echo "apk_sha256=$(sha256sum "$APK" | cut -d' ' -f1)"
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK" | grep 'Signer #1 certificate SHA-256 digest:'
+          } > build-provenance/BUILD-INFO.txt
+
       - name: Remove temporary signing key
         if: always()
         run: rm -f "$RUNNER_TEMP/codex-companion-signing.p12"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: codex-companion-v2-4-persistent-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: codex-companion-v2-5-1-exception-safety-candidate
+          path: |\n            app/build/outputs/apk/debug/app-debug.apk\n            build-provenance/BUILD-INFO.txt
           if-no-files-found: error
