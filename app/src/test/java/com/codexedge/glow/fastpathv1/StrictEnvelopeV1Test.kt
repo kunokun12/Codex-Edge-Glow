@@ -89,4 +89,25 @@ class StrictEnvelopeV1Test {
         }
     }
 
+    @Test fun serialLengthCountsUnicodeCodePoints() {
+        val oneHundredTwentyEight = "😀".repeat(128)
+        val allowed = base.replace("fixture-device", oneHundredTwentyEight)
+        assertEquals("route.status", StrictEnvelopeV1.parse(allowed)["messageType"])
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(base.replace("fixture-device", "😀".repeat(129)))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(base.replace("fixture-device", ""))
+        }
+    }
+
+    @Test fun statusRejectsInvalidJournalCursor() {
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(base.replace("\"afterSequence\":0", "\"afterSequence\":-1"))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(base.replace("\"maxEvents\":256", "\"maxEvents\":0"))
+        }
+    }
+
 }
