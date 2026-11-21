@@ -30,14 +30,32 @@ internal object AuthoritySignatureV1 {
             if (record.keys !in listOf(PROMOTION_KEYS, REVOCATION_KEYS)) return false
             val signed = record.filterKeys { it != "signature" }
             val canonical = CanonicalRouteV1.encode(signed).toByteArray(Charsets.UTF_8)
-            val verifier = Signature.getInstance("RSASSA-PSS")
-            verifier.setParameter(pss)
-            verifier.initVerify(key)
-            verifier.update(canonical)
-            verifier.verify(signatureBytes)
+            verifyWithAvailableProvider(key, canonical, signatureBytes)
         } catch (_: Exception) {
             false
         }
+    }
+
+    // Android API 23+ exposes SHA256withRSA/PSS; desktop JCA often uses RSASSA-PSS.
+    private fun verifyWithAvailableProvider(
+        key: RSAPublicKey, canonical: ByteArray, signatureBytes: ByteArray
+    ): Boolean {
+        for (algorithm in listOf("SHA256withRSA/PSS", "RSASSA-PSS")) {
+            try {
+                val verifier = Signature.getInstance(algorithm)
+                verifier.initVerify(key)
+                verifier.setParameter(pss)
+                verifier.update(canonical)
+                return verifier.verify(signatureBytes)
+            } catch (_: java.security.NoSuchAlgorithmException) {
+                continue
+            } catch (_: java.security.InvalidAlgorithmParameterException) {
+                continue
+            } catch (_: java.security.InvalidKeyException) {
+                continue
+            }
+        }
+        return false
     }
 
     private val PROMOTION_KEYS = setOf("authorityKeyId", "registryEpoch",
