@@ -110,4 +110,67 @@ class StrictEnvelopeV1Test {
         }
     }
 
+
+    private val hash = "a".repeat(64)
+    private val routeDefinition: String get() = """
+        {"packageName":"dev.androidroute.benchmark",
+         "appConstraint":{"versionName":"1.0","versionCode":1,"signerCertificateSha256":"$hash"},
+         "origin":{"stateFingerprint":"$hash","requiredMarkers":["Home"]},
+         "destination":{"stateFingerprint":"$hash","requiredMarkers":["Guide"]},
+         "windowPolicy":"same_window",
+         "steps":[{"stepId":"open-guide",
+            "selector":{"kind":"text","value":"Guide"},
+            "uniquenessPolicy":"exactly_one_actionable_target",
+            "expectedBefore":{"stateFingerprint":"$hash","requiredMarkers":["Home"]},
+            "expectedAfter":{"stateFingerprint":"$hash","requiredMarkers":["Guide"]}}]}
+    """.trimIndent()
+    private fun envelope(type: String, payload: String): String =
+        base.replace("\"messageType\":\"route.status\"", "\"messageType\":\"$type\"")
+            .replace(Regex("\"payload\":\\{.*\\}\\s*\\}$", RegexOption.DOT_MATCHES_ALL),
+                "\"payload\":$payload}")
+
+    @Test fun nestedRouteAcceptsExactSchemaAndRejectsUnknownFields() {
+        val payload = """{"routeId":"benchmark.open_guide","routeVersion":1,
+            "routeFingerprint":"$hash","routeDefinition":$routeDefinition}"""
+        assertEquals("route.execute", StrictEnvelopeV1.parse(envelope("route.execute", payload))["messageType"])
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(envelope("route.execute",
+                payload.replace("\"windowPolicy\":\"same_window\"",
+                    "\"windowPolicy\":\"same_window\",\"extra\":true")))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(envelope("route.execute",
+                payload.replace("\"kind\":\"text\"", "\"kind\":\"coordinates\"")))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(envelope("route.execute",
+                payload.replace("\"requiredMarkers\":[\"Home\"]",
+                    "\"requiredMarkers\":[\"Home\",\"Home\"]")))
+        }
+    }
+
+    @Test fun promotionAndRevocationRequireClosedSignedRecords() {
+        val promotion = """{"promotionRecord":{"authorityKeyId":"root-1",
+            "registryEpoch":1,"issuedAtEpochMs":1,"expiresAtEpochMs":2,
+            "routeId":"benchmark.open_guide","routeVersion":1,
+            "routeFingerprint":"$hash","routeDefinition":$routeDefinition,
+            "signature":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}}"""
+        assertEquals("route.promote",
+            StrictEnvelopeV1.parse(envelope("route.promote", promotion))["messageType"])
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(envelope("route.promote",
+                promotion.replace("\"registryEpoch\":1,", "")))
+        }
+        val revoke = """{"revocationRecord":{"authorityKeyId":"root-1",
+            "registryEpoch":2,"issuedAtEpochMs":1,"routeId":"benchmark.open_guide",
+            "routeVersion":1,"routeFingerprint":"$hash","reasonCode":"retired",
+            "signature":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}}"""
+        assertEquals("route.revoke",
+            StrictEnvelopeV1.parse(envelope("route.revoke", revoke))["messageType"])
+        assertThrows(IllegalArgumentException::class.java) {
+            StrictEnvelopeV1.parse(envelope("route.revoke",
+                revoke.replace("\"reasonCode\":\"retired\"", "\"reasonCode\":\"INVALID\"")))
+        }
+    }
+
 }
