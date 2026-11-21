@@ -108,7 +108,10 @@ internal object StrictEnvelopeV1 {
         if ("maxEvents" in fields) number("maxEvents", 1, 256)
         if ("executionRequestId" in fields) string("executionRequestId", uuid4)
         if ("reason" in fields) string("reason", reason)
-        if ("routeDefinition" in fields) validateRoute(payload["routeDefinition"])
+        if ("routeDefinition" in fields) {
+            validateRoute(payload["routeDefinition"])
+            checkFingerprint(payload)
+        }
         if ("promotionRecord" in fields) validatePromotion(payload["promotionRecord"])
         if ("revocationRecord" in fields) validateRevocation(payload["revocationRecord"])
     }
@@ -188,7 +191,20 @@ internal object StrictEnvelopeV1 {
         str(o, "routeFingerprint", hex64)
         validateRoute(o["routeDefinition"])
         str(o, "signature", signature)
+        checkFingerprint(o)
+        require((o["expiresAtEpochMs"] as Long) > (o["issuedAtEpochMs"] as Long))
     }
+    private fun checkFingerprint(record: Map<*, *>) {
+        @Suppress("UNCHECKED_CAST")
+        val definition = record["routeDefinition"] as Map<String, Any?>
+        val expected = CanonicalRouteV1.fingerprint(
+            record["routeId"] as String,
+            Math.toIntExact(record["routeVersion"] as Long),
+            definition
+        )
+        require(record["routeFingerprint"] == expected) { "Route fingerprint mismatch" }
+    }
+
     private fun validateRevocation(value: Any?) {
         val o = obj(value, "authorityKeyId", "registryEpoch", "issuedAtEpochMs",
             "routeId", "routeVersion", "routeFingerprint", "reasonCode", "signature")
