@@ -58,6 +58,8 @@ jobs:
           keytool -list -keystore "$RUNNER_TEMP/codex-companion-signing.p12" \
             -storepass "$CODEX_SIGNING_STORE_PASSWORD" -alias "$CODEX_SIGNING_KEY_ALIAS" > /dev/null
           echo "CODEX_SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/codex-companion-signing.p12" >> "$GITHUB_ENV"
+      - name: Run Kotlin JVM unit tests (required gate)
+        run: gradle --no-daemon :app:testDebugUnitTest
       - name: Build Companion with persistent signing key
         env:
           CODEX_SIGNING_STORE_PASSWORD: ${{ secrets.CODEX_SIGNING_STORE_PASSWORD }}
