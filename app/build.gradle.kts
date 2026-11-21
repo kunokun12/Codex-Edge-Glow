@@ -43,4 +43,7 @@ android {
 }
 
 // Pure JVM Fast Path v1 core tests; no Android device or receiver needed.
-dependencies { testImplementation("junit:junit:4.13.2") }
+dependencies {
+    implementation("com.google.code.gson:gson:2.11.0")
+    testImplementation("junit:junit:4.13.2")
+}
