@@ -18,6 +18,9 @@ class GlowReceiver : BroadcastReceiver() {
             "com.codexedge.glow.TASK_PING_V25" -> {
                 TaskLeaseV25.handle(context, "TASK_PING_V25", intent)
             }
+            "com.codexedge.glow.TASK_READ_V25" -> {
+                TaskLeaseV25.inspect(context, intent)
+            }
             "com.codexedge.glow.TASK_STOP_V25" -> {
                 TaskLeaseV25.handle(context, "TASK_STOP_V25", intent)
             }
