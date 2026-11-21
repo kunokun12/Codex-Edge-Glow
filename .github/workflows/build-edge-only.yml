@@ -91,8 +91,8 @@ jobs:
             echo "source_commit=$(git rev-parse HEAD)"
             echo "source_branch=${GITHUB_REF_NAME}"
             echo "package=com.codexedge.glow"
-            echo "version_name=2.5.3-lease-request-correlation-candidate"
-            echo "version_code=13"
+            echo "version_name=2.5.4-v25-fail-closed-candidate"
+            echo "version_code=14"
             echo "build_variant=debug"
             echo "apk_sha256=$(sha256sum "$APK" | cut -d' ' -f1)"
             "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK" | grep 'Signer #1 certificate SHA-256 digest:'
@@ -104,7 +104,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: codex-companion-v2-5-3-lease-request-correlation-candidate
+          name: codex-companion-v2-5-4-v25-fail-closed-candidate
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             build-provenance/BUILD-INFO.txt
