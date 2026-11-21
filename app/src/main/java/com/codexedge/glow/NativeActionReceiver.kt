@@ -97,6 +97,8 @@ class NativeActionReceiver : BroadcastReceiver() {
             fun refuse(reason: String): JSONObject = result.put("status", "REFUSED").put("reason", reason)
 
             if (v25) {
+                if (pkg != "dev.androidroute.benchmark" || selector != "label" || value != "Open Guide")
+                    return refuse("v25-fixed-target-mismatch")
                 if (!TaskLeaseV25.authorizeClick(context, request))
                     return refuse("v25-native-lease-not-authorized")
             } else if (!ID_FORMAT.matches(id)) return refuse("invalid-request-id")
@@ -117,6 +119,11 @@ class NativeActionReceiver : BroadcastReceiver() {
             val root = service.rootInActiveWindow ?: return refuse("no-active-window")
             if (root.packageName?.toString() != pkg) return refuse("foreground-package-mismatch")
             if (root.windowId < 0) return refuse("invalid-accessibility-window")
+            if (v25) {
+                val requestedWindow = request.getIntExtra("source_window_id", -1)
+                if (requestedWindow < 0 || requestedWindow != root.windowId)
+                    return refuse("v25-source-window-mismatch")
+            }
 
             val queue = ArrayDeque<AccessibilityNodeInfo>()
             queue.add(root)
@@ -158,6 +165,12 @@ class NativeActionReceiver : BroadcastReceiver() {
             val bounds = Rect()
             button.getBoundsInScreen(bounds)
             if (bounds.isEmpty) return refuse("target-has-empty-bounds")
+            if (v25) {
+                val currentRoot = service.rootInActiveWindow ?: return refuse("foreground-window-lost")
+                if (currentRoot.windowId != root.windowId ||
+                    currentRoot.packageName?.toString() != pkg)
+                    return refuse("foreground-window-changed")
+            }
             // Refresh the live node rather than trusting the earlier tree.
             if (!button.refresh() || !button.isVisibleToUser || !button.isEnabled ||
                 !button.isClickable || button.windowId != root.windowId)
