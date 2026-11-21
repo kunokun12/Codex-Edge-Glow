@@ -26,7 +26,6 @@ internal object StrictEnvelopeV1 {
 
     fun parse(json: String): Map<String, Any?> {
         require(json.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Envelope too large" }
-        require(!json.any { it in '\uD800'..'\uDFFF' }) { "Raw unpaired/escaped surrogate input must be validated" }
         val reader = JsonReader(StringReader(json))
         reader.isLenient = false
         val parsed = readValue(reader, 0)
@@ -50,6 +49,21 @@ internal object StrictEnvelopeV1 {
         require((envelope["expiresAtEpochMs"] as? Long)?.let { it > 0 } == true)
         require(envelope["payload"] is Map<*, *>) { "Missing payload object" }
         return envelope
+    }
+
+    private fun validScalars(s: String): Boolean {
+        var i = 0
+        while (i < s.length) {
+            val ch = s[i]
+            if (Character.isHighSurrogate(ch)) {
+                if (i + 1 >= s.length || !Character.isLowSurrogate(s[i + 1])) return false
+                i += 2
+            } else {
+                if (Character.isLowSurrogate(ch)) return false
+                i++
+            }
+        }
+        return true
     }
 
     private fun readValue(reader: JsonReader, depth: Int): Any? {
@@ -76,7 +90,7 @@ internal object StrictEnvelopeV1 {
             }
             JsonToken.STRING -> {
                 val value = reader.nextString()
-                require(!value.any { it in '\uD800'..'\uDFFF' }) { "Invalid Unicode surrogate" }
+                require(validScalars(value)) { "Invalid Unicode surrogate" }
                 Normalizer.normalize(value, Normalizer.Form.NFC)
             }
             JsonToken.NUMBER -> {
