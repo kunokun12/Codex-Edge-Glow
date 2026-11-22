@@ -17,6 +17,24 @@
             <meta-data android:name="android.accessibilityservice"
                 android:resource="@xml/screen_accessibility" />
         </service>
+        <!-- Candidate M7 observer: read-only, separate process, never enabled by this app. -->
+        <service android:name=".fastpathv1.CandidateObserverAccessibilityServiceV1"
+            android:process=":fastpath-observer"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:label="@string/fastpath_observer_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice"
+                android:resource="@xml/fastpath_candidate_observer" />
+        </service>
+        <!-- Non-exported same-UID in-memory handoff; query-only. -->
+        <provider android:name=".fastpathv1.CandidateObserverSnapshotProviderV1"
+            android:authorities="com.codexedge.glow.observer.internal"
+            android:process=":fastpath-observer"
+            android:exported="false"
+            android:grantUriPermissions="false" />
         <!-- DUMP-protected Fast Path v1 admission/control boundary; execution fails closed until release gates exist. -->
         <receiver android:name=".FastPathV1Receiver"
             android:exported="true"

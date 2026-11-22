@@ -1,0 +1,78 @@
+{
+  "vectors": [
+    {
+      "name": "ordered-hierarchy-unicode-and-stable-properties",
+      "snapshot": {
+        "packageName": "com.example.reader",
+        "windowId": 41,
+        "windowIdBefore": 41,
+        "windowIdAfter": 41,
+        "capturedAtElapsedRealtimeMs": 10000,
+        "treeComplete": true,
+        "truncated": false,
+        "collectionSuccess": true,
+        "timeBudgetExceeded": false,
+        "truncationReason": null,
+        "traversalError": null,
+        "nodes": [
+          {
+            "index": 0,
+            "parentIndex": -1,
+            "depth": 0,
+            "windowId": 41,
+            "text": null,
+            "description": null,
+            "resourceId": "com.example.reader:id/root",
+            "className": "android.view.ViewGroup",
+            "visible": true,
+            "enabled": true,
+            "clickable": false,
+            "focusable": false,
+            "selected": false,
+            "checked": false,
+            "password": false
+          },
+          {
+            "index": 1,
+            "parentIndex": 0,
+            "depth": 1,
+            "windowId": 41,
+            "text": "Café",
+            "description": null,
+            "resourceId": "com.example.reader:id/title",
+            "className": "android.widget.TextView",
+            "visible": true,
+            "enabled": true,
+            "clickable": false,
+            "focusable": false,
+            "selected": false,
+            "checked": false,
+            "password": false
+          },
+          {
+            "index": 2,
+            "parentIndex": 0,
+            "depth": 1,
+            "windowId": 41,
+            "text": null,
+            "description": "Continue",
+            "resourceId": "com.example.reader:id/continue",
+            "className": "android.widget.Button",
+            "visible": true,
+            "enabled": true,
+            "clickable": true,
+            "focusable": true,
+            "selected": false,
+            "checked": false,
+            "password": false
+          }
+        ]
+      },
+      "expectedPackage": "com.example.reader",
+      "expectedWindowId": 41,
+      "nowElapsedRealtimeMs": 10100,
+      "maxAgeMs": 2500,
+      "expectedFingerprint": "cf5ad5e1ead738b30ad326b5cfe512e8c6912bb148e6608ec097ca72860fbf68"
+    }
+  ]
+}

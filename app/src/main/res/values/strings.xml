@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="fastpath_observer_label">Fast Path Observer (candidate, read only)</string>
+    <string name="fastpath_observer_description">Candidate UI evidence observer. It does not dispatch actions and is not approved for production Fast Path use.</string>
+</resources>
