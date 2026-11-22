@@ -114,6 +114,23 @@ class FastPathExecutionJournalV1Test {
         }
     }
 
+    @Test fun unresolvedPossibleDispatchFencesDifferentRequestsUntilRecovery() {
+        journal().use { store ->
+            val first = tuple(70)
+            val acquired = acquire(store, first)
+            assertTrue(acquired.acquired)
+            val record = requireNotNull(acquired.record)
+            assertTrue(store.commitDispatchPossible(first, record.fencingToken, "open-guide",
+                record.journalSequence, 10_001L, "boot-a"))
+            assertTrue(store.finishRecoveryRequired(first, record.fencingToken))
+
+            val competing = acquire(store, tuple(71), at = 10_002L)
+            assertFalse(competing.acquired)
+            assertEquals("prior-operation-uncertain", competing.reasonCode)
+            assertEquals(0, competing.record?.completedStepCount)
+        }
+    }
+
     @Test fun cancellationBeforeDispatchCancelsAndAfterBoundaryRemainsUncertain() {
         val before = tuple(7)
         journal().use { store ->

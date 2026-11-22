@@ -348,6 +348,13 @@ class FastPathExecutionEngineV1Test {
             assertEquals("RECOVERY_REQUIRED", result.taskState)
             assertTrue(result.dispatchPossible)
             assertNotEquals("VERIFIED", result.verificationStatus)
+            // Each invalid-verifier case needs a fresh journal. Production
+            // intentionally fences all new work while any prior dispatch is
+            // unresolved, including a different task ID.
+            journal.close()
+            context.deleteDatabase(journalDb)
+            context.filesDir.resolve("$journalDb.present").delete()
+            journal = FastPathExecutionJournalV1(context, journalDb)
             return result
         }
         assertEquals("destination-not-independently-verified", run(14, null).reasonCode)
