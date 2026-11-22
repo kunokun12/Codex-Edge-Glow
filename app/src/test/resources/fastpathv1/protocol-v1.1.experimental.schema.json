@@ -1,0 +1,3167 @@
+{
+  "$comment": "EXPERIMENTAL M9.1 proposed amendment to M8 draft. NOT PRODUCTION-APPROVED. The capture/verification refusal shapes and reason-code bindings require owner protocol approval.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tessera://fast-path/v1.1/protocol",
+  "title": "Tessera Fast Path v1.1 DRAFT messages",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageType",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "expiresAtEpochMs",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "messageType": {
+          "const": "route.promote"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "expiresAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "promotionRecord"
+          ],
+          "properties": {
+            "promotionRecord": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "authorityKeyId",
+                "registryEpoch",
+                "issuedAtEpochMs",
+                "expiresAtEpochMs",
+                "routeId",
+                "routeVersion",
+                "routeFingerprint",
+                "routeDefinition",
+                "signature"
+              ],
+              "properties": {
+                "authorityKeyId": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "registryEpoch": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "issuedAtEpochMs": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "expiresAtEpochMs": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "routeId": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                },
+                "routeVersion": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "routeFingerprint": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "routeDefinition": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "packageName",
+                    "appConstraint",
+                    "origin",
+                    "destination",
+                    "windowPolicy",
+                    "steps"
+                  ],
+                  "properties": {
+                    "packageName": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$"
+                    },
+                    "appConstraint": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "versionName",
+                        "versionCode",
+                        "signerCertificateSha256"
+                      ],
+                      "properties": {
+                        "versionName": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "versionCode": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "signerCertificateSha256": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        }
+                      }
+                    },
+                    "origin": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "stateFingerprint",
+                        "requiredMarkers"
+                      ],
+                      "properties": {
+                        "stateFingerprint": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "requiredMarkers": {
+                          "type": "array",
+                          "minItems": 1,
+                          "uniqueItems": true,
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 120
+                          }
+                        }
+                      }
+                    },
+                    "destination": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "stateFingerprint",
+                        "requiredMarkers"
+                      ],
+                      "properties": {
+                        "stateFingerprint": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "requiredMarkers": {
+                          "type": "array",
+                          "minItems": 1,
+                          "uniqueItems": true,
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 120
+                          }
+                        }
+                      }
+                    },
+                    "windowPolicy": {
+                      "const": "same_window"
+                    },
+                    "steps": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 32,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "stepId",
+                          "selector",
+                          "uniquenessPolicy",
+                          "expectedBefore",
+                          "expectedAfter"
+                        ],
+                        "properties": {
+                          "stepId": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                          },
+                          "selector": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "kind",
+                              "value"
+                            ],
+                            "properties": {
+                              "kind": {
+                                "enum": [
+                                  "text",
+                                  "contentDescription",
+                                  "resourceId"
+                                ]
+                              },
+                              "value": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256
+                              }
+                            }
+                          },
+                          "expectedBefore": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "stateFingerprint",
+                              "requiredMarkers"
+                            ],
+                            "properties": {
+                              "stateFingerprint": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$"
+                              },
+                              "requiredMarkers": {
+                                "type": "array",
+                                "minItems": 1,
+                                "uniqueItems": true,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                }
+                              }
+                            }
+                          },
+                          "expectedAfter": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "stateFingerprint",
+                              "requiredMarkers"
+                            ],
+                            "properties": {
+                              "stateFingerprint": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$"
+                              },
+                              "requiredMarkers": {
+                                "type": "array",
+                                "minItems": 1,
+                                "uniqueItems": true,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 120
+                                }
+                              }
+                            }
+                          },
+                          "uniquenessPolicy": {
+                            "const": "exactly_one_actionable_target"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "signature": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{80,2048}$"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageType",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "expiresAtEpochMs",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "messageType": {
+          "const": "route.revoke"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "expiresAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "revocationRecord"
+          ],
+          "properties": {
+            "revocationRecord": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "authorityKeyId",
+                "registryEpoch",
+                "issuedAtEpochMs",
+                "routeId",
+                "routeVersion",
+                "routeFingerprint",
+                "reasonCode",
+                "signature"
+              ],
+              "properties": {
+                "authorityKeyId": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "registryEpoch": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "issuedAtEpochMs": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "routeId": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                },
+                "routeVersion": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "routeFingerprint": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "signature": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{80,2048}$"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageType",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "expiresAtEpochMs",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "messageType": {
+          "const": "route.execute"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "expiresAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "routeId",
+            "routeVersion",
+            "routeFingerprint",
+            "routeDefinition"
+          ],
+          "properties": {
+            "routeId": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+            },
+            "routeVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "routeFingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "routeDefinition": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "packageName",
+                "appConstraint",
+                "origin",
+                "destination",
+                "windowPolicy",
+                "steps"
+              ],
+              "properties": {
+                "packageName": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$"
+                },
+                "appConstraint": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "versionName",
+                    "versionCode",
+                    "signerCertificateSha256"
+                  ],
+                  "properties": {
+                    "versionName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "versionCode": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "signerCertificateSha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                "origin": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "stateFingerprint",
+                    "requiredMarkers"
+                  ],
+                  "properties": {
+                    "stateFingerprint": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "requiredMarkers": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      }
+                    }
+                  }
+                },
+                "destination": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "stateFingerprint",
+                    "requiredMarkers"
+                  ],
+                  "properties": {
+                    "stateFingerprint": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "requiredMarkers": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      }
+                    }
+                  }
+                },
+                "windowPolicy": {
+                  "const": "same_window"
+                },
+                "steps": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 32,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "stepId",
+                      "selector",
+                      "uniquenessPolicy",
+                      "expectedBefore",
+                      "expectedAfter"
+                    ],
+                    "properties": {
+                      "stepId": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+                      },
+                      "selector": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "value"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "text",
+                              "contentDescription",
+                              "resourceId"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256
+                          }
+                        }
+                      },
+                      "expectedBefore": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "stateFingerprint",
+                          "requiredMarkers"
+                        ],
+                        "properties": {
+                          "stateFingerprint": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$"
+                          },
+                          "requiredMarkers": {
+                            "type": "array",
+                            "minItems": 1,
+                            "uniqueItems": true,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 120
+                            }
+                          }
+                        }
+                      },
+                      "expectedAfter": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "stateFingerprint",
+                          "requiredMarkers"
+                        ],
+                        "properties": {
+                          "stateFingerprint": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$"
+                          },
+                          "requiredMarkers": {
+                            "type": "array",
+                            "minItems": 1,
+                            "uniqueItems": true,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 120
+                            }
+                          }
+                        }
+                      },
+                      "uniquenessPolicy": {
+                        "const": "exactly_one_actionable_target"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageType",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "expiresAtEpochMs",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "messageType": {
+          "const": "route.cancel"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "expiresAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,63}$",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageType",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "expiresAtEpochMs",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "messageType": {
+          "const": "route.status"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "expiresAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "routeId",
+            "routeVersion",
+            "routeFingerprint",
+            "maxAgeMs",
+            "afterSequence",
+            "afterDigest",
+            "maxEvents"
+          ],
+          "properties": {
+            "routeId": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+            },
+            "routeVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "routeFingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "maxAgeMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2500
+            },
+            "afterSequence": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "afterDigest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "maxEvents": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageType",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "expiresAtEpochMs",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "messageType": {
+          "const": "evidence.capture"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "expiresAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expectedPackage",
+            "expectedWindowId",
+            "maxAgeMs",
+            "maxNodes"
+          ],
+          "properties": {
+            "expectedPackage": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$"
+            },
+            "expectedWindowId": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxAgeMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2500
+            },
+            "maxNodes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageType",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "expiresAtEpochMs",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "messageType": {
+          "const": "route.verify"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "expiresAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "executionRequestId",
+            "routeId",
+            "routeVersion",
+            "routeFingerprint",
+            "expectedDestinationFingerprint",
+            "expectedPackage",
+            "expectedWindowId",
+            "maxAgeMs"
+          ],
+          "properties": {
+            "executionRequestId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "routeId": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+            },
+            "routeVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "routeFingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "expectedDestinationFingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "expectedPackage": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$"
+            },
+            "expectedWindowId": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxAgeMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2500
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "status",
+        "reasonCode",
+        "observedAtEpochMs",
+        "messageType",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "PREPARED",
+            "ACCEPTED",
+            "RUNNING",
+            "PROMOTED",
+            "REVOKED",
+            "VERIFIED_SUCCESS",
+            "REFUSED",
+            "REJECTED",
+            "CANCELLED",
+            "RECOVERY_REQUIRED",
+            "UNKNOWN",
+            "STALE"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "observedAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "messageType": {
+          "const": "route.promote.result"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "routeId",
+            "routeVersion",
+            "routeFingerprint",
+            "lifecycle",
+            "registryEpoch",
+            "authorityKeyId",
+            "expiresAtEpochMs"
+          ],
+          "properties": {
+            "routeId": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+            },
+            "routeVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "routeFingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lifecycle": {
+              "enum": [
+                "PROMOTED",
+                "REFUSED"
+              ]
+            },
+            "registryEpoch": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "authorityKeyId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "expiresAtEpochMs": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "status",
+        "reasonCode",
+        "observedAtEpochMs",
+        "messageType",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "PREPARED",
+            "ACCEPTED",
+            "RUNNING",
+            "PROMOTED",
+            "REVOKED",
+            "VERIFIED_SUCCESS",
+            "REFUSED",
+            "REJECTED",
+            "CANCELLED",
+            "RECOVERY_REQUIRED",
+            "UNKNOWN",
+            "STALE"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "observedAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "messageType": {
+          "const": "route.revoke.result"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "routeId",
+            "routeVersion",
+            "routeFingerprint",
+            "lifecycle",
+            "registryEpoch",
+            "reasonCode"
+          ],
+          "properties": {
+            "routeId": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+            },
+            "routeVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "routeFingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "lifecycle": {
+              "enum": [
+                "REVOKED",
+                "REFUSED"
+              ]
+            },
+            "registryEpoch": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reasonCode": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,63}$",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "status",
+        "reasonCode",
+        "observedAtEpochMs",
+        "messageType",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "PREPARED",
+            "ACCEPTED",
+            "RUNNING",
+            "PROMOTED",
+            "REVOKED",
+            "VERIFIED_SUCCESS",
+            "REFUSED",
+            "REJECTED",
+            "CANCELLED",
+            "RECOVERY_REQUIRED",
+            "UNKNOWN",
+            "STALE"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "observedAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "messageType": {
+          "const": "route.cancel.result"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskState",
+            "stopAccepted",
+            "stopAfterCurrentStep",
+            "journalSequence",
+            "dispatchPossible"
+          ],
+          "properties": {
+            "taskState": {
+              "type": "string"
+            },
+            "stopAccepted": {
+              "type": "boolean"
+            },
+            "stopAfterCurrentStep": {
+              "type": "boolean"
+            },
+            "journalSequence": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dispatchPossible": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "status",
+        "reasonCode",
+        "observedAtEpochMs",
+        "messageType",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "PREPARED",
+            "ACCEPTED",
+            "RUNNING",
+            "PROMOTED",
+            "REVOKED",
+            "VERIFIED_SUCCESS",
+            "REFUSED",
+            "REJECTED",
+            "CANCELLED",
+            "RECOVERY_REQUIRED",
+            "UNKNOWN",
+            "STALE"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "observedAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "messageType": {
+          "const": "route.status.result"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskState",
+            "currentStepId",
+            "completedStepCount",
+            "journalSequence",
+            "dispatchPossible",
+            "leaseState",
+            "leaseExpiresAtElapsedRealtimeMs",
+            "observedAtElapsedRealtimeMs",
+            "executionRequestId",
+            "fromSequence",
+            "throughSequence",
+            "journalHeadSequence",
+            "journalHeadDigest",
+            "events",
+            "hasMore"
+          ],
+          "properties": {
+            "taskState": {
+              "type": "string"
+            },
+            "currentStepId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "completedStepCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "journalSequence": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dispatchPossible": {
+              "type": "boolean"
+            },
+            "leaseState": {
+              "enum": [
+                "ACTIVE",
+                "EXPIRED",
+                "RELEASED",
+                "NONE"
+              ]
+            },
+            "leaseExpiresAtElapsedRealtimeMs": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "observedAtElapsedRealtimeMs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "executionRequestId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "fromSequence": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "throughSequence": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "journalHeadSequence": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "journalHeadDigest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "events": {
+              "type": "array",
+              "maxItems": 256,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sequence",
+                  "taskId",
+                  "requestId",
+                  "sessionId",
+                  "ownerId",
+                  "deviceSerial",
+                  "eventType",
+                  "stepId",
+                  "taskState",
+                  "dispatchPossible",
+                  "previousDigest",
+                  "eventDigest"
+                ],
+                "properties": {
+                  "sequence": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "requestId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "sessionId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "ownerId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "deviceSerial": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "eventType": {
+                    "enum": [
+                      "TASK_PREPARED",
+                      "LEASE_ACQUIRED",
+                      "STEP_OBSERVED",
+                      "STEP_MATCHED",
+                      "DISPATCH_POSSIBLE",
+                      "ACTION_ACCEPTED",
+                      "ACTION_REJECTED",
+                      "ACTION_UNCERTAIN",
+                      "STEP_VERIFIED",
+                      "TASK_CANCELLED",
+                      "TASK_VERIFIED",
+                      "TASK_REFUSED",
+                      "LEASE_EXPIRED",
+                      "RECOVERY_REQUIRED"
+                    ]
+                  },
+                  "stepId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 64
+                  },
+                  "taskState": {
+                    "enum": [
+                      "PREPARED",
+                      "RUNNING",
+                      "VERIFYING",
+                      "VERIFIED_SUCCESS",
+                      "REFUSED",
+                      "CANCELLED",
+                      "RECOVERY_REQUIRED"
+                    ]
+                  },
+                  "dispatchPossible": {
+                    "type": "boolean"
+                  },
+                  "previousDigest": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "eventDigest": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            },
+            "hasMore": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "status",
+        "reasonCode",
+        "observedAtEpochMs",
+        "messageType",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "PREPARED",
+            "ACCEPTED",
+            "RUNNING",
+            "PROMOTED",
+            "REVOKED",
+            "VERIFIED_SUCCESS",
+            "REFUSED",
+            "REJECTED",
+            "CANCELLED",
+            "RECOVERY_REQUIRED",
+            "UNKNOWN",
+            "STALE"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "observedAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "messageType": {
+          "const": "evidence.capture.result"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "captureOutcome",
+            "reasonCode",
+            "snapshot",
+            "producer"
+          ],
+          "properties": {
+            "captureOutcome": {
+              "enum": [
+                "CAPTURED",
+                "OBSERVER_UNAVAILABLE",
+                "INCOMPLETE",
+                "STALE",
+                "PERMISSION_UNAVAILABLE",
+                "TIMEOUT",
+                "UNSUPPORTED_PROFILE"
+              ]
+            },
+            "reasonCode": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,63}$"
+            },
+            "snapshot": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schema",
+                    "snapshotId",
+                    "packageName",
+                    "source",
+                    "windowId",
+                    "windowIdBefore",
+                    "windowIdAfter",
+                    "capturedAtEpochMs",
+                    "capturedAtElapsedRealtimeMs",
+                    "ageMs",
+                    "treeComplete",
+                    "truncated",
+                    "nodes",
+                    "traversal",
+                    "sha256"
+                  ],
+                  "properties": {
+                    "schema": {
+                      "const": 3
+                    },
+                    "snapshotId": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "packageName": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$"
+                    },
+                    "source": {
+                      "const": "accessibility"
+                    },
+                    "windowId": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "windowIdBefore": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "windowIdAfter": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "capturedAtEpochMs": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "capturedAtElapsedRealtimeMs": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ageMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2500
+                    },
+                    "treeComplete": {
+                      "type": "boolean"
+                    },
+                    "truncated": {
+                      "type": "boolean"
+                    },
+                    "nodes": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 4096,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [],
+                        "properties": {
+                          "text": {
+                            "type": "string",
+                            "maxLength": 1000
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 1000
+                          },
+                          "resourceId": {
+                            "type": "string",
+                            "maxLength": 1000
+                          },
+                          "className": {
+                            "type": "string",
+                            "maxLength": 200
+                          },
+                          "bounds": {
+                            "type": "array",
+                            "minItems": 4,
+                            "maxItems": 4,
+                            "items": {
+                              "type": "integer"
+                            }
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "clickable": {
+                            "type": "boolean"
+                          },
+                          "visible": {
+                            "type": "boolean"
+                          },
+                          "focusable": {
+                            "type": "boolean"
+                          },
+                          "selected": {
+                            "type": "boolean"
+                          },
+                          "checked": {
+                            "type": "boolean"
+                          },
+                          "password": {
+                            "type": "boolean"
+                          },
+                          "windowId": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "parentIndex": {
+                            "type": "integer",
+                            "minimum": -1
+                          },
+                          "depth": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 64
+                          }
+                        }
+                      }
+                    },
+                    "traversal": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "rootCount",
+                        "visitedNodeCount",
+                        "maxDepth",
+                        "nodeTraversalLimit",
+                        "timeBudgetMs",
+                        "durationMs",
+                        "timeBudgetExceeded",
+                        "truncationReason",
+                        "traversalError",
+                        "collectionSuccess",
+                        "windowStable",
+                        "windowIdBefore",
+                        "windowIdAfter"
+                      ],
+                      "properties": {
+                        "rootCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "visitedNodeCount": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 4096
+                        },
+                        "maxDepth": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 64
+                        },
+                        "nodeTraversalLimit": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 4096
+                        },
+                        "timeBudgetMs": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 250
+                        },
+                        "durationMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 250
+                        },
+                        "timeBudgetExceeded": {
+                          "type": "boolean"
+                        },
+                        "truncationReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 80
+                        },
+                        "traversalError": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 80
+                        },
+                        "collectionSuccess": {
+                          "type": "boolean"
+                        },
+                        "windowStable": {
+                          "type": "boolean"
+                        },
+                        "windowIdBefore": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "windowIdAfter": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "producer": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "producerId",
+                    "companionVersionCode",
+                    "signerCertificateSha256",
+                    "deviceSerial",
+                    "taskId",
+                    "sessionId",
+                    "snapshotId",
+                    "sourceCommit",
+                    "artifactSha256"
+                  ],
+                  "properties": {
+                    "producerId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "companionVersionCode": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "signerCertificateSha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "deviceSerial": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "taskId": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "sessionId": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "snapshotId": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "sourceCommit": {
+                      "type": "string",
+                      "minLength": 7,
+                      "maxLength": 64
+                    },
+                    "artifactSha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "captureOutcome": {
+                    "const": "CAPTURED"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "ACCEPTED"
+              },
+              "payload": {
+                "properties": {
+                  "snapshot": {
+                    "type": "object"
+                  },
+                  "producer": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "captureOutcome": {
+                    "const": "OBSERVER_UNAVAILABLE"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "REFUSED"
+              },
+              "reasonCode": {
+                "const": "observer-unavailable"
+              },
+              "payload": {
+                "properties": {
+                  "reasonCode": {
+                    "const": "observer-unavailable"
+                  },
+                  "snapshot": {
+                    "type": "null"
+                  },
+                  "producer": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "captureOutcome": {
+                    "const": "INCOMPLETE"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "REFUSED"
+              },
+              "reasonCode": {
+                "const": "snapshot-incomplete"
+              },
+              "payload": {
+                "properties": {
+                  "reasonCode": {
+                    "const": "snapshot-incomplete"
+                  },
+                  "snapshot": {
+                    "type": "null"
+                  },
+                  "producer": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "captureOutcome": {
+                    "const": "STALE"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "STALE"
+              },
+              "reasonCode": {
+                "const": "snapshot-stale"
+              },
+              "payload": {
+                "properties": {
+                  "reasonCode": {
+                    "const": "snapshot-stale"
+                  },
+                  "snapshot": {
+                    "type": "null"
+                  },
+                  "producer": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "captureOutcome": {
+                    "const": "PERMISSION_UNAVAILABLE"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "REFUSED"
+              },
+              "reasonCode": {
+                "const": "permission-unavailable"
+              },
+              "payload": {
+                "properties": {
+                  "reasonCode": {
+                    "const": "permission-unavailable"
+                  },
+                  "snapshot": {
+                    "type": "null"
+                  },
+                  "producer": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "captureOutcome": {
+                    "const": "TIMEOUT"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "REFUSED"
+              },
+              "reasonCode": {
+                "const": "observer-timeout"
+              },
+              "payload": {
+                "properties": {
+                  "reasonCode": {
+                    "const": "observer-timeout"
+                  },
+                  "snapshot": {
+                    "type": "null"
+                  },
+                  "producer": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "captureOutcome": {
+                    "const": "UNSUPPORTED_PROFILE"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "REFUSED"
+              },
+              "reasonCode": {
+                "const": "unsupported-evidence-profile"
+              },
+              "payload": {
+                "properties": {
+                  "reasonCode": {
+                    "const": "unsupported-evidence-profile"
+                  },
+                  "snapshot": {
+                    "type": "null"
+                  },
+                  "producer": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "status",
+        "reasonCode",
+        "observedAtEpochMs",
+        "messageType",
+        "payload"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "PREPARED",
+            "ACCEPTED",
+            "RUNNING",
+            "PROMOTED",
+            "REVOKED",
+            "VERIFIED_SUCCESS",
+            "REFUSED",
+            "REJECTED",
+            "CANCELLED",
+            "RECOVERY_REQUIRED",
+            "UNKNOWN",
+            "STALE"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "observedAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "messageType": {
+          "const": "route.verify.result"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "reasonCode",
+            "evidence"
+          ],
+          "properties": {
+            "outcome": {
+              "enum": [
+                "VERIFIED",
+                "OTHER_DESTINATION",
+                "UNAVAILABLE",
+                "STALE"
+              ]
+            },
+            "reasonCode": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,63}$"
+            },
+            "evidence": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "packageName",
+                    "windowId",
+                    "observedAtEpochMs",
+                    "ageMs",
+                    "destinationFingerprint",
+                    "independenceClass",
+                    "observerBuildSha256"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "VERIFIED",
+                        "OTHER_DESTINATION",
+                        "UNAVAILABLE",
+                        "STALE"
+                      ]
+                    },
+                    "packageName": {
+                      "type": "string"
+                    },
+                    "windowId": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "observedAtEpochMs": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "ageMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2500
+                    },
+                    "destinationFingerprint": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "independenceClass": {
+                      "enum": [
+                        "separate-observer-process",
+                        "host-independent-reader"
+                      ]
+                    },
+                    "observerBuildSha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "outcome": {
+                    "const": "VERIFIED"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "ACCEPTED"
+              },
+              "payload": {
+                "properties": {
+                  "evidence": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "outcome": {
+                    "const": "OTHER_DESTINATION"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "REFUSED"
+              },
+              "payload": {
+                "properties": {
+                  "evidence": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "outcome": {
+                    "const": "UNAVAILABLE"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "REFUSED"
+              },
+              "payload": {
+                "properties": {
+                  "evidence": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "outcome": {
+                    "const": "STALE"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "STALE"
+              },
+              "payload": {
+                "properties": {
+                  "evidence": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocolVersion",
+        "messageType",
+        "requestId",
+        "taskId",
+        "sessionId",
+        "ownerId",
+        "deviceBinding",
+        "status",
+        "reasonCode",
+        "observedAtEpochMs",
+        "lease",
+        "execution",
+        "snapshot",
+        "verification",
+        "provenance"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "const": "tessera.fast-path/1.1"
+        },
+        "messageType": {
+          "enum": [
+            "route.execute.result",
+            "snapshot.result"
+          ]
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "ownerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "deviceBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "deviceSerial",
+            "companionPackage",
+            "companionVersionCode",
+            "signerCertificateSha256"
+          ],
+          "properties": {
+            "deviceSerial": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "companionPackage": {
+              "const": "com.codexedge.glow"
+            },
+            "companionVersionCode": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "signerCertificateSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "PREPARED",
+            "RUNNING",
+            "VERIFIED_SUCCESS",
+            "REFUSED",
+            "REJECTED",
+            "CANCELLED",
+            "RECOVERY_REQUIRED",
+            "UNKNOWN"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$"
+        },
+        "observedAtEpochMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lease": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "expiresAtEpochMs"
+          ],
+          "properties": {
+            "state": {
+              "enum": [
+                "ACTIVE",
+                "EXPIRED",
+                "RELEASED",
+                "NONE"
+              ]
+            },
+            "expiresAtEpochMs": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          }
+        },
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "currentStepId",
+            "completedStepCount",
+            "journalSequence",
+            "dispatchPossible",
+            "actionReceipt"
+          ],
+          "properties": {
+            "currentStepId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "completedStepCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "journalSequence": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dispatchPossible": {
+              "type": "boolean"
+            },
+            "actionReceipt": {
+              "enum": [
+                "ACCEPTED",
+                "REJECTED",
+                "UNCERTAIN",
+                null
+              ]
+            }
+          }
+        },
+        "snapshot": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "snapshotId",
+            "packageName",
+            "windowId",
+            "capturedAtEpochMs",
+            "ageMs",
+            "complete",
+            "truncated",
+            "traversalError",
+            "sha256"
+          ],
+          "properties": {
+            "snapshotId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "packageName": {
+              "type": "string"
+            },
+            "windowId": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "capturedAtEpochMs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ageMs": {
+              "type": "number",
+              "minimum": 0
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "truncated": {
+              "type": "boolean"
+            },
+            "traversalError": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "verification": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "packageName",
+            "windowId",
+            "observedAtEpochMs",
+            "ageMs",
+            "destinationFingerprint",
+            "independent",
+            "observerId"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "VERIFIED",
+                "UNVERIFIED",
+                "OTHER_DESTINATION",
+                "UNAVAILABLE"
+              ]
+            },
+            "packageName": {
+              "type": "string"
+            },
+            "windowId": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "observedAtEpochMs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ageMs": {
+              "type": "number",
+              "minimum": 0
+            },
+            "destinationFingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "independent": {
+              "type": "boolean"
+            },
+            "observerId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        },
+        "provenance": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceCommit",
+                "artifactSha256",
+                "signerCertificateSha256",
+                "versionName",
+                "versionCode"
+              ],
+              "properties": {
+                "sourceCommit": {
+                  "type": "string",
+                  "minLength": 7,
+                  "maxLength": 64
+                },
+                "artifactSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "signerCertificateSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "versionName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "versionCode": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "VERIFIED_SUCCESS"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "verification": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "const": "VERIFIED"
+                  },
+                  "independent": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "status",
+                  "independent"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "VERIFIED_SUCCESS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "provenance": {
+                "type": "object"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "provenance": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

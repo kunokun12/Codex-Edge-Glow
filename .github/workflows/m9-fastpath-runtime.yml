@@ -3,11 +3,12 @@ name: M9 Fast Path candidate verification
 on:
   workflow_dispatch:
   push:
-    branches: [feature/fastpath-v1-m9-runtime]
+    branches: [feature/fastpath-v1-m9-runtime, feature/fastpath-v1-m9-1-android-wiring]
     paths:
       - 'app/**'
       - 'observer/**'
       - 'docs/fast-path-v1/protocol-v1.1.experimental.schema.json'
+      - 'app/src/test/resources/fastpathv1/**'
       - 'settings.gradle.kts'
       - 'build.gradle.kts'
       - '.github/workflows/m9-fastpath-runtime.yml'

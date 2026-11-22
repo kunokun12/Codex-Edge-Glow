@@ -53,6 +53,17 @@ internal object StrictEnvelopeV1 {
     fun parseExperimentalV1_1(json: String): Map<String, Any?> =
         parseForVersion(json, "tessera.fast-path/1.1")
 
+    /** Exact v1.1 profile plus the same bounded transport TTL as v1. */
+    fun parseExperimentalV1_1Transport(bytes: ByteArray, nowEpochMs: Long): Map<String, Any?> {
+        require(bytes.size <= MAX_BYTES) { "Envelope too large" }
+        val decoder = StandardCharsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)
+        val envelope = parseExperimentalV1_1(decoder.decode(ByteBuffer.wrap(bytes)).toString())
+        val expires = envelope["expiresAtEpochMs"] as Long
+        require(nowEpochMs >= 0 && expires > nowEpochMs && expires - nowEpochMs <= 300000L) { "Expired or excessive request TTL" }
+        return envelope
+    }
+
     private fun parseForVersion(json: String, expectedVersion: String): Map<String, Any?> {
         require(json.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Envelope too large" }
         val reader = JsonReader(StringReader(json))

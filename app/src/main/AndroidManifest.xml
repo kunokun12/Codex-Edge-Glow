@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries><package android:name="org.tessera.observer" /></queries>
     <uses-permission android:name="org.tessera.observer.permission.READ_EVIDENCE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -43,6 +44,12 @@
             <intent-filter>
                 <action android:name="com.codexedge.glow.FAST_PATH_V1" />
             </intent-filter>
+        </receiver>
+        <!-- Separate experimental v1.1 endpoint; never falls through to the v1 receiver. -->
+        <receiver android:name=".FastPathV1_1Receiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter><action android:name="com.codexedge.glow.FAST_PATH_V1_1_EXPERIMENTAL" /></intent-filter>
         </receiver>
         <!-- Request-scoped, read-only Fast Path result API. -->
         <provider android:name=".FastPathResultProvider"
