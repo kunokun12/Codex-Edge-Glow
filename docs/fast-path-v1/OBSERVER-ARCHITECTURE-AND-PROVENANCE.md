@@ -4,7 +4,7 @@
 
 ## Candidate Android boundary
 
-- `CandidateObserverAccessibilityServiceV1` is declared as an Accessibility service in Android process `com.codexedge.glow:fastpath-observer`, separate from the receiver/executor process.
+- `CandidateObserverAccessibilityServiceV1` is declared as an Accessibility service in Android process `com.codexedge.glow:fastpath_observer`, separate from the receiver/executor process.
 - Its service configuration requests window-content retrieval and window/content events. It does not request gesture capability. Source review confirms the service contains no `performAction`, click, gesture, text-entry, or navigation call.
 - The service captures one active window on service connection and relevant Accessibility events. It traverses a single root breadth-first, preserving child order and parent/depth indices. It bounds nodes to 4096, depth to 64, traversal to 250 ms, snapshot bytes to 4 MiB, and total candidate processing to 500 ms. Incomplete evidence is discarded.
 - It publishes one fresh snapshot in process memory. `CandidateObserverSnapshotProviderV1` runs in the same observer process, is `exported=false`, rejects non-same-UID callers and mutation methods, checks snapshot freshness, recomputes the candidate snapshot digest, and consumes the snapshot once. Raw UI evidence is not written to a journal or disk.

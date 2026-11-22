@@ -19,7 +19,7 @@
         </service>
         <!-- Candidate M7 observer: read-only, separate process, never enabled by this app. -->
         <service android:name=".fastpathv1.CandidateObserverAccessibilityServiceV1"
-            android:process=":fastpath-observer"
+            android:process=":fastpath_observer"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:label="@string/fastpath_observer_label"
             android:exported="true">
@@ -32,7 +32,7 @@
         <!-- Non-exported same-UID in-memory handoff; query-only. -->
         <provider android:name=".fastpathv1.CandidateObserverSnapshotProviderV1"
             android:authorities="com.codexedge.glow.observer.internal"
-            android:process=":fastpath-observer"
+            android:process=":fastpath_observer"
             android:exported="false"
             android:grantUriPermissions="false" />
         <!-- DUMP-protected Fast Path v1 admission/control boundary; execution fails closed until release gates exist. -->

@@ -18,7 +18,7 @@ class CandidateObserverIsolationV1Test {
         val service = context.packageManager.getServiceInfo(
             ComponentName(context, CandidateObserverAccessibilityServiceV1::class.java),
             PackageManager.GET_META_DATA)
-        assertTrue(service.processName.endsWith(":fastpath-observer"))
+        assertTrue(service.processName.endsWith(":fastpath_observer"))
         assertEquals("android.permission.BIND_ACCESSIBILITY_SERVICE", service.permission)
         assertTrue(service.exported)
 
@@ -26,7 +26,7 @@ class CandidateObserverIsolationV1Test {
             ComponentName(context, CandidateObserverSnapshotProviderV1::class.java),
             PackageManager.GET_META_DATA)
         assertFalse(provider.exported)
-        assertTrue(provider.processName.endsWith(":fastpath-observer"))
+        assertTrue(provider.processName.endsWith(":fastpath_observer"))
     }
 
     @Test fun candidateServiceConfigurationDoesNotRequestGestureCapability() {

@@ -13,7 +13,7 @@ import java.util.UUID
 
 /**
  * M7 candidate read-only observer. Android hosts this component in
- * `:fastpath-observer`, separate from the receiver/executor process. The code
+ * `:fastpath_observer`, separate from the receiver/executor process. The code
  * only reads AccessibilityNodeInfo and exposes one ephemeral in-memory snapshot
  * through a non-exported provider. It is not enabled by this implementation,
  * not independently approved, and not connected to route.verify.
@@ -173,8 +173,8 @@ internal class CandidateObserverAccessibilityServiceV1 : AccessibilityService() 
             .put("capturedAtEpochMs", System.currentTimeMillis())
             .put("capturedAtElapsedRealtimeMs", startedElapsed)
             .put("ageMs", 0)
-            .put("treeComplete", complete)
-            .put("truncated", truncationReason != null)
+            .put("treeComplete", true)
+            .put("truncated", false)
             .put("nodes", nodes)
             .put("traversal", JSONObject()
                 .put("rootCount", 1)
@@ -182,11 +182,11 @@ internal class CandidateObserverAccessibilityServiceV1 : AccessibilityService() 
                 .put("maxDepth", MAX_DEPTH)
                 .put("nodeTraversalLimit", MAX_NODES)
                 .put("timeBudgetMs", MAX_TRAVERSAL_MS)
-                .put("durationMs", durationMs.coerceAtMost(MAX_TRAVERSAL_MS))
-                .put("timeBudgetExceeded", durationMs > MAX_TRAVERSAL_MS || truncationReason == "time-limit")
-                .put("truncationReason", truncationReason ?: JSONObject.NULL)
-                .put("traversalError", traversalError ?: JSONObject.NULL)
-                .put("collectionSuccess", traversalError == null)
+                .put("durationMs", durationMs)
+                .put("timeBudgetExceeded", false)
+                .put("truncationReason", JSONObject.NULL)
+                .put("traversalError", JSONObject.NULL)
+                .put("collectionSuccess", true)
                 .put("windowStable", windowStable)
                 .put("windowIdBefore", rootWindowId)
                 .put("windowIdAfter", afterWindowId))

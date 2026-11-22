@@ -81,7 +81,8 @@ class CandidateReadOnlyVerifierV1Test {
     @Test fun incompleteEvidenceAndMissingOrAmbiguousMarkersFail() {
         val incomplete = snapshot(complete = false)
         assertEquals(CandidateVerificationOutcomeV1.INCOMPLETE_EVIDENCE,
-            evaluate(incomplete, expectation(incomplete)))
+            evaluate(incomplete, expectation(snapshot(), fingerprint = CandidateUiSnapshotFingerprintV2.fingerprint(
+                snapshot(), "com.example.reader", 7, 102))))
         val missing = snapshot(nodes = listOf(root(), marker(description = "Continue loading")))
         assertEquals(CandidateVerificationOutcomeV1.MARKER_MISSING, evaluate(missing, expectation(missing)))
         val ambiguous = snapshot(nodes = listOf(root(), marker(), marker(index = 2)))

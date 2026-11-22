@@ -99,7 +99,9 @@ class CandidateUiSnapshotFingerprintV2Test {
 
     @Test fun rejectsMissingOrUnstableEvidenceAndIdentityDrift() {
         assertThrows(IllegalArgumentException::class.java) { fingerprint(snapshot(nodes = emptyList())) }
-        assertThrows(IllegalArgumentException::class.java) { fingerprint(snapshot(packageName = "com.other.app")) }
+        assertThrows(IllegalArgumentException::class.java) {
+            fingerprint(snapshot(packageName = "com.other.app"), pkg = "com.example.reader")
+        }
         assertThrows(IllegalArgumentException::class.java) { fingerprint(snapshot(windowId = 42), window = 41) }
         assertThrows(IllegalArgumentException::class.java) { fingerprint(snapshot(after = 42)) }
         assertThrows(IllegalArgumentException::class.java) { fingerprint(snapshot(complete = false)) }
