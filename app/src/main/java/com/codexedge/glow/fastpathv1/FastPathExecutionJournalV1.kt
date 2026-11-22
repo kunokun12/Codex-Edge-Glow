@@ -535,10 +535,7 @@ internal class FastPathExecutionJournalV1(
             super.onConfigure(db)
             db.setForeignKeyConstraintsEnabled(true)
             db.execSQL("PRAGMA synchronous=FULL")
-            val journalMode = db.rawQuery("PRAGMA journal_mode", null).use { c ->
-                if (c.moveToFirst()) c.getString(0) else ""
-            }
-            if (!journalMode.equals("delete", ignoreCase = true))
+            if (db.isWriteAheadLoggingEnabled)
                 throw RegistryStorageException("execution-journal-mode-unavailable")
         }
         override fun onCreate(db: SQLiteDatabase) {
