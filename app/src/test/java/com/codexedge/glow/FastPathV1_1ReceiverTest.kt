@@ -5,10 +5,13 @@ import android.content.Intent
 import android.util.Base64
 import com.google.gson.Gson
 import org.junit.Assert.*
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.junit.Test
 import org.robolectric.RuntimeEnvironment
 import java.util.UUID
 
+@RunWith(RobolectricTestRunner::class)
 class FastPathV1_1ReceiverTest {
     private fun envelope(profile: String = "tessera.fast-path/1.1", operation: String = "evidence.capture"): String {
         val now = System.currentTimeMillis()

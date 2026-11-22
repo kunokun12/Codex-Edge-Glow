@@ -22,8 +22,9 @@ internal object ProductionV1_1RuntimePorts : V1_1RuntimePorts {
 /** Versioned response construction and strict closed validation for the three Android runtime operations. */
 internal object FastPathV1_1Runtime {
     private const val PROFILE = ExperimentalEnvelopeV1_1.VERSION
-    private val outer = setOf("protocolVersion", "messageType", "requestId", "taskId", "sessionId", "ownerId",
-        "deviceBinding", "status", "reasonCode", "observedAtEpochMs", "lease", "execution", "snapshot", "verification", "provenance")
+    private val common = setOf("protocolVersion", "messageType", "requestId", "taskId", "sessionId", "ownerId",
+        "deviceBinding", "status", "reasonCode", "observedAtEpochMs")
+    private val outer = common + setOf("lease", "execution", "snapshot", "verification", "provenance")
 
     fun dispatch(request: Map<String, Any?>, nowEpochMs: Long,
                  ports: V1_1RuntimePorts = ProductionV1_1RuntimePorts): Map<String, Any?> {
@@ -92,7 +93,10 @@ internal object FastPathV1_1Runtime {
             "route.verify.result" -> "route.verify"
             else -> error("response-operation-invalid")
         }
-        val expectedFields = if (requestType == "route.execute") outer else outer + "payload"
+        val expectedFields = when (requestType) {
+            "route.execute" -> outer
+            else -> common + "payload"
+        }
         require(value.keys == expectedFields) { "response-fields-invalid" }
         require(value["protocolVersion"] == PROFILE) { "response-profile-invalid" }
         require(value["requestId"] is String && value["taskId"] is String && value["sessionId"] is String && value["ownerId"] is String)
