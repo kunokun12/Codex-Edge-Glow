@@ -244,6 +244,8 @@ class FastPathRegistryV1Test {
     @Test fun sameEpochConcurrentWritersCannotBothCommit() {
         val first = signedPromotion(id = "benchmark.route_a")
         val second = signedPromotion(id = "benchmark.route_b")
+        // Initialize the shared SQLite schema before independent helper instances race to open it.
+        registry().use { assertEquals(0L, it.highestEpoch()) }
         val stores = listOf(registry(), registry())
         val pool = Executors.newFixedThreadPool(2)
         try {
