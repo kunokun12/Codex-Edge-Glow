@@ -237,7 +237,7 @@ class FastPathRegistryV1Test {
             assertEquals(2L, store.highestEpoch())
             assertNull(store.findPromoted("benchmark.open_guide", 1,
                 promotion.getValue("routeFingerprint") as String))
-            assertEquals("REVOKED", store.registryEvents().last()["operation"])
+            assertEquals("REVOCATION", store.registryEvents().last()["operation"])
         }
     }
 

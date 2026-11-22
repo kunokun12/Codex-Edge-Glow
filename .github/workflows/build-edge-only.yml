@@ -60,6 +60,15 @@ jobs:
           echo "CODEX_SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/codex-companion-signing.p12" >> "$GITHUB_ENV"
       - name: Run Kotlin JVM unit tests (required gate)
         run: gradle --no-daemon :app:testDebugUnitTest
+      - name: Upload Kotlin JVM unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastpath-v1-test-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
       - name: Build Companion with persistent signing key
         env:
           CODEX_SIGNING_STORE_PASSWORD: ${{ secrets.CODEX_SIGNING_STORE_PASSWORD }}
