@@ -30,10 +30,12 @@ class FastPathV1_1ReceiverEngineSimulationTest {
     private lateinit var keyPair: KeyPair
     private lateinit var registry: FastPathRegistryV1
     private lateinit var journal: FastPathExecutionJournalV1
+    private lateinit var resultStore: FastPathV1_1ResultStore
     private lateinit var runtime: EngineFixture
     private lateinit var leaseKeys: KeyPair
     private val registryDb = "v11-receiver-registry-${System.nanoTime()}.db"
     private val journalDb = "v11-receiver-journal-${System.nanoTime()}.db"
+    private val resultDirectory = "v11-results-${System.nanoTime()}"
     private val now = System.currentTimeMillis()
     private val bootId = "isolated-test-boot"
     private val observerDigest = "f".repeat(64)
@@ -43,12 +45,16 @@ class FastPathV1_1ReceiverEngineSimulationTest {
 
     init {
         val before = mapOf("stateFingerprint" to "b".repeat(64), "requiredMarkers" to listOf("screen.home"))
-        val after = mapOf("stateFingerprint" to "c".repeat(64), "requiredMarkers" to listOf("screen.done"))
+        val middle = mapOf("stateFingerprint" to "c".repeat(64), "requiredMarkers" to listOf("navigation.settings"))
+        val after = mapOf("stateFingerprint" to "d".repeat(64), "requiredMarkers" to listOf("screen.done"))
         route = mapOf("packageName" to "org.example.app",
             "appConstraint" to mapOf("versionName" to "1.0", "versionCode" to 1L, "signerCertificateSha256" to "d".repeat(64)),
             "origin" to before, "destination" to after, "windowPolicy" to "same_window",
-            "steps" to listOf(mapOf("stepId" to "open", "selector" to mapOf("kind" to "text", "value" to "Open"),
-                "uniquenessPolicy" to "exactly_one_actionable_target", "expectedBefore" to before, "expectedAfter" to after)))
+            "steps" to listOf(
+                mapOf("stepId" to "open", "selector" to mapOf("kind" to "text", "value" to "Open"),
+                    "uniquenessPolicy" to "exactly_one_actionable_target", "expectedBefore" to before, "expectedAfter" to middle),
+                mapOf("stepId" to "continue", "selector" to mapOf("kind" to "text", "value" to "Continue"),
+                    "uniquenessPolicy" to "exactly_one_actionable_target", "expectedBefore" to middle, "expectedAfter" to after)))
     }
 
     @Before fun setUp() {
@@ -63,6 +69,7 @@ class FastPathV1_1ReceiverEngineSimulationTest {
         val trust = AuthorityTrustV1.forTests(listOf(AuthorityAnchorV1("test-root", keyPair.public as RSAPublicKey, 1, null)))
         registry = FastPathRegistryV1(context, trust, { now }, registryDb)
         journal = FastPathExecutionJournalV1(context, journalDb)
+        resultStore = FastPathV1_1ResultStore(context, resultDirectory)
         val fingerprint = CanonicalRouteV1.fingerprint("route.demo", 1, route)
         val unsigned = mapOf<String, Any?>("authorityKeyId" to "test-root", "registryEpoch" to 1L,
             "issuedAtEpochMs" to now - 1000, "expiresAtEpochMs" to now + 60000,
@@ -78,6 +85,7 @@ class FastPathV1_1ReceiverEngineSimulationTest {
         context.deleteDatabase(registryDb); context.deleteDatabase(journalDb)
         context.filesDir.resolve("fastpath-registry-v1.present").delete()
         context.filesDir.resolve("$journalDb.present").delete()
+        context.filesDir.resolve(resultDirectory).deleteRecursively()
     }
 
     private fun sign(value: Map<String, Any?>): String {
@@ -88,9 +96,10 @@ class FastPathV1_1ReceiverEngineSimulationTest {
         return JavaBase64.getUrlEncoder().withoutPadding().encodeToString(signer.sign())
     }
 
-    private fun requestJson(expiredLease: Boolean = false): String {
+    private fun requestJson(expiredLease: Boolean = false, seed: Int = 1): String {
         val fingerprint = CanonicalRouteV1.fingerprint("route.demo", 1, route)
-        val requestId = "00000000-0000-4000-8000-000000000101"
+        fun id(offset: Int) = "00000000-0000-4000-8000-${(100 + seed + offset).toString().padStart(12, '0')}"
+        val requestId = id(0)
         val nowElapsed = SystemClock.elapsedRealtime()
         runtime.lease = runtime.signedLease(OfflineLeaseV1(leaseId = "fixture-lease", deviceEnrollmentId = "offline-test",
             protocolProfile = "tessera.fast-path/1.1", authorityId = "test-root", keysetVersion = 1,
@@ -101,8 +110,7 @@ class FastPathV1_1ReceiverEngineSimulationTest {
             issuedElapsedRealtimeMs = nowElapsed - 100, revoked = false, signature = ""))
         runtime.requestId = requestId
         return Gson().toJson(mapOf("protocolVersion" to "tessera.fast-path/1.1", "messageType" to "route.execute",
-            "requestId" to requestId, "taskId" to "00000000-0000-4000-8000-000000000102",
-            "sessionId" to "00000000-0000-4000-8000-000000000103", "ownerId" to "00000000-0000-4000-8000-000000000104",
+            "requestId" to requestId, "taskId" to id(1), "sessionId" to id(2), "ownerId" to id(3),
             "deviceBinding" to binding, "expiresAtEpochMs" to now + 60000,
             "payload" to mapOf("routeId" to "route.demo", "routeVersion" to 1, "routeFingerprint" to fingerprint,
                 "routeDefinition" to route)))
@@ -114,7 +122,8 @@ class FastPathV1_1ReceiverEngineSimulationTest {
     private inner class EngineFixture : V1_1RuntimePorts, AutoCloseable {
         override val executionGateApproved = true
         override val authorityAvailable = true
-        override val observerApproved = true
+        var observerTrusted = true
+        override val observerApproved get() = observerTrusted
         val elapsed = AtomicLong(SystemClock.elapsedRealtime())
         var lease = signedLease(OfflineLeaseV1(leaseId = "unset", deviceEnrollmentId = "offline-test",
             protocolProfile = "tessera.fast-path/1.1", authorityId = "test-root", keysetVersion = 1,
@@ -123,29 +132,36 @@ class FastPathV1_1ReceiverEngineSimulationTest {
             maxValidityMs = CheckpointLeaseV1Experimental.MAX_LEASE_DURATION_MS, bootId = bootId,
             issuedElapsedRealtimeMs = elapsed.get() - 100, revoked = false, signature = ""))
         var requestId = ""
+        var taskId = ""
+        var sessionId = ""
+        var ownerId = ""
         var wrongOrigin = false
         var ambiguous = false
-        var failJournalBoundary = false
+        var uncertainAfterDispatch = false
+        var actionReceipt = "ACCEPTED"
         var dispatches = 0
-        var persistCount = 0
         var lastResponse: Map<String, Any?>? = null
-        val tuple get() = ExecutionTupleV1(requestId, "00000000-0000-4000-8000-000000000102",
-            "00000000-0000-4000-8000-000000000103", "00000000-0000-4000-8000-000000000104", "offline-test")
+        val tuple get() = ExecutionTupleV1(requestId, taskId, sessionId, ownerId, "offline-test")
         private val action = object : FastPathActionPortV1 {
             private var captures = 0
             override fun installedApp(packageName: String) = AppIdentityV1(packageName, "1.0", 1, "d".repeat(64))
             override fun captureFresh(packageName: String, expectedWindowId: Int?, maxNodes: Int, maxAgeMs: Int): UiEvidenceV1 {
                 captures++
-                val isAfter = captures % 2 == 0
-                val fingerprint = if (isAfter) "c".repeat(64) else if (wrongOrigin) "0".repeat(64) else "b".repeat(64)
-                val marker = if (isAfter) "screen.done" else "screen.home"
+                val fingerprint = when (captures) {
+                    2, 3 -> "c".repeat(64)
+                    4 -> "d".repeat(64)
+                    else -> if (wrongOrigin) "0".repeat(64) else "b".repeat(64)
+                }
+                val marker = when (captures) { 2, 3 -> "navigation.settings"; 4 -> "screen.done"; else -> "screen.home" }
                 val targets = mutableListOf(VisibleTargetV1("marker-$captures", packageName, 7, true, true, false, marker, null, null))
-                targets += VisibleTargetV1("open-$captures", packageName, 7, true, true, true, "Open", null, null)
-                if (ambiguous && !isAfter) targets += VisibleTargetV1("open-duplicate", packageName, 7, true, true, true, "Open", null, null)
+                val selector = if (captures <= 2) "Open" else "Continue"
+                targets += VisibleTargetV1("action-$captures", packageName, 7, true, true, true, selector, null, null)
+                if (ambiguous && captures == 1) targets += VisibleTargetV1("action-duplicate", packageName, 7, true, true, true, "Open", null, null)
                 return UiEvidenceV1(packageName, 7, 7, 7, elapsed.get(), true, false, fingerprint, targets)
             }
             override fun dispatchClick(target: VisibleTargetV1, expectedPackage: String, expectedWindowId: Int): Boolean {
                 dispatches++
+                if (uncertainAfterDispatch) { actionReceipt = "UNCERTAIN"; throw IllegalStateException("simulated-process-loss") }
                 return true
             }
             override fun independentlyVerify(route: ExecutableRouteV1, expectedWindowId: Int, maxAgeMs: Int): VerificationEvidenceV1 {
@@ -186,6 +202,10 @@ class FastPathV1_1ReceiverEngineSimulationTest {
         override fun capture(request: Map<String, Any?>) = CaptureResult("OBSERVER_UNAVAILABLE", "observer-unavailable")
 
         override fun execute(request: Map<String, Any?>, nowEpochMs: Long): Map<String, Any?> {
+            resultStore.existing(request)?.let { return it }
+            taskId = request["taskId"] as String
+            sessionId = request["sessionId"] as String
+            ownerId = request["ownerId"] as String
             val payload = request["payload"] as Map<String, Any?>
             val requested = RequestedRouteV1(payload["routeId"] as String, payload["routeVersion"] as Long,
                 payload["routeFingerprint"] as String, payload["routeDefinition"] as Map<String, Any?>)
@@ -194,7 +214,7 @@ class FastPathV1_1ReceiverEngineSimulationTest {
                 ?: return refusal(request, nowEpochMs, "route-not-authorized")
             val checkpoint = signedCheckpoint(RegistryCheckpointV1(deviceEnrollmentId = "offline-test", protocolProfile = "tessera.fast-path/1.1",
                 authorityId = "test-root", keysetVersion = 1, highestCommittedRegistryEpoch = promoted.registryEpoch,
-                currentCheckpointDigest = "e".repeat(64), issuedAtEpochMs = now - 1000, expiresAtEpochMs = now + 60000,
+                currentCheckpointDigest = "e".repeat(64), issuedAtEpochMs = now - 200_000, expiresAtEpochMs = now + 60000,
                 revoked = false, recoveryState = "NORMAL", signature = ""))
             val leaseFields = mapOf<String, Any?>("schema" to lease.schema, "leaseId" to lease.leaseId,
                 "deviceEnrollmentId" to lease.deviceEnrollmentId, "protocolProfile" to lease.protocolProfile,
@@ -230,16 +250,16 @@ class FastPathV1_1ReceiverEngineSimulationTest {
                 "lease" to mapOf("state" to if (success) "RELEASED" else "NONE", "expiresAtEpochMs" to null),
                 "execution" to mapOf("currentStepId" to record?.currentStepId, "completedStepCount" to (record?.completedStepCount ?: 0).toLong(),
                     "journalSequence" to (record?.journalSequence ?: 0L), "dispatchPossible" to outcome.dispatchPossible,
-                    "actionReceipt" to if (outcome.dispatchPossible) "ACCEPTED" else null),
+                    "actionReceipt" to if (outcome.dispatchPossible) actionReceipt else null),
                 "snapshot" to null,
                 "verification" to if (success) mapOf("status" to "VERIFIED", "packageName" to "org.example.app", "windowId" to 7,
-                    "observedAtEpochMs" to nowEpochMs, "ageMs" to 0L, "destinationFingerprint" to "c".repeat(64),
+                    "observedAtEpochMs" to nowEpochMs, "ageMs" to 0L, "destinationFingerprint" to "d".repeat(64),
                     "independent" to true, "observerId" to "fixture-observer-$observerDigest") else null,
                 "provenance" to if (success) mapOf("sourceCommit" to "simulated-test-commit", "artifactSha256" to "1".repeat(64),
                     "signerCertificateSha256" to "2".repeat(64), "versionName" to "test-fixture", "versionCode" to 1L) else null)
             // Isolated durable-result stand-in: the receiver returns only after persistence succeeds.
-            if (!failJournalBoundary && success) { lastResponse = response; persistCount++ }
-            return response
+            lastResponse = resultStore.save(request, response)
+            return lastResponse!!
         }
 
         private fun refusal(request: Map<String, Any?>, now: Long, reason: String) = base(request, now) + mapOf(
@@ -258,12 +278,21 @@ class FastPathV1_1ReceiverEngineSimulationTest {
         assertEquals(android.app.Activity.RESULT_OK, result.first)
         val response = JsonParser.parseString(String(Base64.decode(result.second, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING))).asJsonObject
         assertEquals("VERIFIED_SUCCESS", response.get("status").asString)
-        assertEquals(1, runtime.dispatches)
-        assertEquals(1, runtime.persistCount)
+        assertEquals(2, runtime.dispatches)
+        assertNotNull(resultStore.existing(StrictEnvelopeV1.parseExperimentalV1_1(requestJson())))
         assertEquals("VERIFIED_SUCCESS", runtime.lastResponse!!["status"])
         val eventTypes = journal.record(runtime.tuple)!!
         assertTrue(eventTypes.dispatchPossible)
         assertEquals("VERIFIED_SUCCESS", eventTypes.taskState)
+    }
+
+    @Test fun duplicateReceiverRequestReturnsStoredResultWithoutSecondDispatch() {
+        val request = requestJson()
+        val receiver = FastPathV1_1Receiver()
+        val first = receiver.handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(request), runtime)
+        val second = receiver.handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(request), runtime)
+        assertEquals(first.second, second.second)
+        assertEquals(1, runtime.dispatches)
     }
 
     @Test fun wrongOriginAndAmbiguousSelectorStopBeforeDispatchThroughRealEngine() {
@@ -277,5 +306,33 @@ class FastPathV1_1ReceiverEngineSimulationTest {
         val result = FastPathV1_1Receiver().handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(requestJson(expiredLease = true)), runtime)
         assertEquals(0, runtime.dispatches)
         assertTrue(String(Base64.decode(result.second, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)).contains("lease-expired"))
+    }
+
+    @Test fun ambiguousSelectorAndUnapprovedObserverCannotProduceVerifiedSuccess() {
+        runtime.ambiguous = true
+        val ambiguous = FastPathV1_1Receiver().handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(requestJson()), runtime)
+        assertEquals(0, runtime.dispatches)
+        assertTrue(String(Base64.decode(ambiguous.second, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)).contains("selector-ambiguous"))
+
+        runtime.ambiguous = false
+        runtime.observerTrusted = false
+        val noObserver = FastPathV1_1Receiver().handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(requestJson(seed = 2)), runtime)
+        assertEquals(0, runtime.dispatches)
+        assertTrue(String(Base64.decode(noObserver.second, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)).contains("runtime-approval-required"))
+        assertFalse(String(Base64.decode(noObserver.second, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)).contains("VERIFIED_SUCCESS"))
+    }
+
+    @Test fun uncertainDispatchIsPersistedAndDuplicateCannotReplay() {
+        runtime.uncertainAfterDispatch = true
+        val request = requestJson()
+        val receiver = FastPathV1_1Receiver()
+        val first = receiver.handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(request), runtime)
+        val second = receiver.handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(request), runtime)
+        val response = String(Base64.decode(first.second, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING))
+        assertEquals(first.second, second.second)
+        assertEquals(1, runtime.dispatches)
+        assertTrue(response.contains("RECOVERY_REQUIRED"))
+        assertTrue(response.contains("UNCERTAIN"))
+        assertFalse(response.contains("VERIFIED_SUCCESS"))
     }
 }
