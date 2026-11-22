@@ -151,14 +151,16 @@ class FastPathExecutionEngineV1Test {
             verifyCount++
             val result = verification ?: return null
             return if (preserveVerificationObservationTime) result else result.copy(
-                observedElapsedMs = observationClock(), ageMs = 0)
+                observedElapsedMs = observationClock())
         }
     }
 
     private fun engine(port: FastPathActionPortV1, enabled: Boolean = true, clock: (() -> Long)? = null): FastPathExecutionEngineV1 {
         var simulatedElapsed = elapsed
-        val effectiveClock: () -> Long = clock ?: { ++simulatedElapsed }
-        (port as? SimulatedPort)?.observationClock = effectiveClock
+        val effectiveClock: () -> Long = clock ?: { simulatedElapsed }
+        (port as? SimulatedPort)?.observationClock = {
+            if (clock == null) ++simulatedElapsed else effectiveClock()
+        }
         return FastPathExecutionEngineV1(registry, journal, port, { enabled }, effectiveClock,
             { "boot-a" }, "e".repeat(64))
     }
@@ -396,6 +398,6 @@ class FastPathExecutionEngineV1Test {
         assertEquals("RECOVERY_REQUIRED", result.taskState)
         assertEquals("destination-not-independently-verified", result.reasonCode)
         assertEquals(1, port.dispatchCount)
-        assertEquals("UNAVAILABLE", result.verificationStatus)
+        assertEquals("UNVERIFIED", result.verificationStatus)
     }
 }
