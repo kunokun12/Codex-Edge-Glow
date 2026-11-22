@@ -3,3 +3,8 @@
 *.jks
 *.keystore
 **/password.txt
+
+# Local Gradle/Kotlin compiler caches and build outputs
+.gradle/
+.kotlin/
+**/build/

@@ -1,0 +1,83 @@
+{
+  "vectorVersion": "tessera.route-canonical/1",
+  "vectors": [
+    {
+      "name": "benchmark-route-ascii",
+      "routeId": "benchmark.open_guide",
+      "routeVersion": 1,
+      "routeDefinition": {
+        "packageName": "dev.androidroute.benchmark",
+        "appConstraint": {
+          "versionName": "1.0",
+          "versionCode": 1,
+          "signerCertificateSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "origin": {
+          "stateFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "requiredMarkers": [
+            "benchmark-home"
+          ]
+        },
+        "destination": {
+          "stateFingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "requiredMarkers": [
+            "guide-screen"
+          ]
+        },
+        "windowPolicy": "same_window",
+        "steps": [
+          {
+            "stepId": "open-guide",
+            "selector": {
+              "kind": "text",
+              "value": "Open Guide"
+            },
+            "expectedBefore": {
+              "stateFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "requiredMarkers": [
+                "benchmark-home"
+              ]
+            },
+            "expectedAfter": {
+              "stateFingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "requiredMarkers": [
+                "guide-screen"
+              ]
+            },
+            "uniquenessPolicy": "exactly_one_actionable_target"
+          }
+        ]
+      },
+      "canonicalUtf8": "{\"fingerprintVersion\":\"tessera.route-canonical/1\",\"routeDefinition\":{\"appConstraint\":{\"signerCertificateSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"versionCode\":1,\"versionName\":\"1.0\"},\"destination\":{\"requiredMarkers\":[\"guide-screen\"],\"stateFingerprint\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"},\"origin\":{\"requiredMarkers\":[\"benchmark-home\"],\"stateFingerprint\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"},\"packageName\":\"dev.androidroute.benchmark\",\"steps\":[{\"expectedAfter\":{\"requiredMarkers\":[\"guide-screen\"],\"stateFingerprint\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"},\"expectedBefore\":{\"requiredMarkers\":[\"benchmark-home\"],\"stateFingerprint\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"},\"selector\":{\"kind\":\"text\",\"value\":\"Open Guide\"},\"stepId\":\"open-guide\",\"uniquenessPolicy\":\"exactly_one_actionable_target\"}],\"windowPolicy\":\"same_window\"},\"routeId\":\"benchmark.open_guide\",\"routeVersion\":1}",
+      "sha256": "f44b3325835f4fed73b83977aa44b2b03fe456e602d0871d592c6481f217fb68"
+    },
+    {
+      "name": "nfc-value-normalization",
+      "routeId": "sample.unicode",
+      "routeVersion": 2,
+      "routeDefinition": {
+        "packageName": "example.app",
+        "marker": "Café 🧭",
+        "steps": [
+          {
+            "id": "one",
+            "selector": "Résumé"
+          }
+        ]
+      },
+      "canonicalUtf8": "{\"fingerprintVersion\":\"tessera.route-canonical/1\",\"routeDefinition\":{\"marker\":\"Café 🧭\",\"packageName\":\"example.app\",\"steps\":[{\"id\":\"one\",\"selector\":\"Résumé\"}]},\"routeId\":\"sample.unicode\",\"routeVersion\":2}",
+      "sha256": "a4d72b0bfac1f5986b0a3b253a525f9c0b2d335883fef91b00007fd46768bec1"
+    },
+    {
+      "name": "unicode-codepoint-key-order",
+      "routeId": "sample.unicode-keys",
+      "routeVersion": 3,
+      "routeDefinition": {
+        "𐀀": "supplementary",
+        "": "bmp"
+      },
+      "canonicalUtf8": "{\"fingerprintVersion\":\"tessera.route-canonical/1\",\"routeDefinition\":{\"\":\"bmp\",\"𐀀\":\"supplementary\"},\"routeId\":\"sample.unicode-keys\",\"routeVersion\":3}",
+      "sha256": "e6c43f726a44d9d9366ed797e5a19544fa4dba6d22b6b8ef421ac957154f8f5b"
+    }
+  ]
+}

@@ -10,11 +10,12 @@ import java.text.Normalizer
 import java.util.UUID
 
 /**
- * Offline, fail-closed v1 envelope decoder. No Android or action dependencies.
- * This is NOT the complete M1 JSON-schema validator; payload validation remains
- * mandatory before any receiver may accept an operation.
+ * Offline, fail-closed v1 request-envelope and closed payload validator. It has no
+ * Android or action dependencies; authorization and durable mutation remain
+ * separate gates.
  */
 internal object StrictEnvelopeV1 {
+    const val VERSION = "tessera.fast-path/1"
     private const val MAX_BYTES = 65536
     private const val MAX_DEPTH = 128
     private val idKeys = setOf("requestId", "taskId", "sessionId", "ownerId")
@@ -194,6 +195,11 @@ internal object StrictEnvelopeV1 {
         checkFingerprint(o)
         require((o["expiresAtEpochMs"] as Long) > (o["issuedAtEpochMs"] as Long))
     }
+
+    /** Reusable closed-schema checks for the durable trust boundary. */
+    fun validatePromotionRecord(value: Any?) = validatePromotion(value)
+    fun validateRevocationRecord(value: Any?) = validateRevocation(value)
+    fun validateRouteDefinition(value: Any?) = validateRoute(value)
     private fun checkFingerprint(record: Map<*, *>) {
         @Suppress("UNCHECKED_CAST")
         val definition = record["routeDefinition"] as Map<String, Any?>

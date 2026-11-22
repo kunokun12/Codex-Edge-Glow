@@ -3,9 +3,9 @@ package com.codexedge.glow.fastpathv1
 import java.security.PublicKey
 
 /**
- * Pure pre-registry authorization gate. No keys are bundled, no state is persisted,
- * and the receiver does not call this class. The registry must atomically enforce
- * epoch monotonicity with its durable commit; this check alone is not a transaction.
+ * Pure signature/time/schema authorization primitive used by the durable registry.
+ * The registry must atomically enforce epoch monotonicity with its durable commit;
+ * this check alone is not a transaction.
  */
 internal object AuthorityAdmissionV1 {
     private const val MAX_PROMOTION_LIFETIME_MS = 86_400_000L
