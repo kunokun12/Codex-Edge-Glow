@@ -39,18 +39,16 @@ internal class ObserverIpcClientV1(private val context: Context) {
                 val data = message.data
                 val uid = message.sendingUid
                 val packages = context.packageManager.getPackagesForUid(uid)?.toSet().orEmpty()
-                require(uid > 0 && packages == setOf(OBSERVER_PACKAGE)) { "observer-ipc-identity-mismatch" }
-                require(data.getString("protocol") == PROTOCOL && data.getString("outcome") == "CANDIDATE_EVIDENCE") { "observer-ipc-refused" }
-                require(data.getString("requestId") == requestId && data.getString("executionId") == executionId && data.getString("challenge") == challenge) { "observer-ipc-correlation-mismatch" }
-                require(data.getString("bootTimebaseId") == bootId) { "observer-ipc-timebase-mismatch" }
-                require(data.getString("packageName") == expectedPackage && data.getInt("windowId", -1) == expectedWindowId) { "observer-ipc-window-mismatch" }
-                val captured = data.getLong("capturedElapsedRealtimeMs", -1)
-                val now = SystemClock.elapsedRealtime()
-                require(data.getBoolean("complete") && captured > dispatchElapsedMs && captured <= now && now - captured <= MAX_AGE_MS) { "observer-ipc-stale-or-incomplete" }
-                val digest = data.getString("evidenceDigest") ?: error("observer-ipc-digest-missing")
-                require(HEX64.matches(digest)) { "observer-ipc-digest-invalid" }
-                result = Result.Candidate(CandidateEvidence(requestId, executionId, expectedPackage, expectedWindowId,
-                    captured, digest, bootId, data.getString("observerArtifactIdentity") ?: "", uid))
+                val reply = ObserverIpcReplyV1(data.getString("protocol") ?: "", data.getString("outcome") ?: "",
+                    data.getString("requestId") ?: "", data.getString("executionId") ?: "", data.getString("challenge") ?: "",
+                    data.getString("bootTimebaseId") ?: "", data.getString("packageName") ?: "", data.getInt("windowId", -1),
+                    data.getLong("capturedElapsedRealtimeMs", -1), data.getBoolean("complete"), data.getString("evidenceDigest") ?: "",
+                    data.getString("observerPackage") ?: "", data.getString("observerArtifactIdentity") ?: "")
+                val evidence = ObserverIpcReplyValidatorV1.validate(ObserverIpcExpectedV1(requestId, executionId, challenge,
+                    bootId, expectedPackage, expectedWindowId, dispatchElapsedMs), reply, uid, packages, SystemClock.elapsedRealtime(), MAX_AGE_MS)
+                result = Result.Candidate(CandidateEvidence(evidence.requestId, evidence.executionId, evidence.packageName,
+                    evidence.windowId, evidence.capturedElapsedMs, evidence.digest, evidence.bootTimebaseId,
+                    evidence.artifactIdentity, evidence.observerUid))
             } catch (e: Exception) { result = Result.Refused(e.message?.takeIf { it.matches(Regex("[a-z-]{1,64}")) } ?: "observer-ipc-invalid") }
             latch.countDown(); true
         })
