@@ -1,0 +1,102 @@
+{
+  "status": "EXPERIMENTAL_NOT_APPROVED",
+  "algorithm": "tessera.ui-state/1",
+  "policy": "compiled marker IDs; raw text and descriptions excluded; password text excluded",
+  "vectors": [
+    {
+      "id": "home-screen",
+      "snapshot": {
+        "packageName": "org.example.reader",
+        "windowId": 41,
+        "windowIdBefore": 41,
+        "windowIdAfter": 41,
+        "capturedAtElapsedRealtimeMs": 9800,
+        "treeComplete": true,
+        "truncated": false,
+        "collectionSuccess": true,
+        "timeBudgetExceeded": false,
+        "truncationReason": null,
+        "traversalError": null,
+        "nodes": [
+          {
+            "index": 0,
+            "parentIndex": -1,
+            "depth": 0,
+            "windowId": 41,
+            "text": null,
+            "description": null,
+            "resourceId": null,
+            "className": "android.widget.LinearLayout",
+            "visible": true,
+            "enabled": true,
+            "clickable": false,
+            "focusable": false,
+            "selected": false,
+            "checked": false,
+            "password": false
+          },
+          {
+            "index": 1,
+            "parentIndex": 0,
+            "depth": 1,
+            "windowId": 41,
+            "text": "Home",
+            "description": null,
+            "resourceId": "org.example.reader:id/title",
+            "className": "android.widget.TextView",
+            "visible": true,
+            "enabled": true,
+            "clickable": false,
+            "focusable": false,
+            "selected": false,
+            "checked": false,
+            "password": false
+          },
+          {
+            "index": 2,
+            "parentIndex": 0,
+            "depth": 1,
+            "windowId": 41,
+            "text": "Continue",
+            "description": null,
+            "resourceId": "org.example.reader:id/continue",
+            "className": "android.widget.Button",
+            "visible": true,
+            "enabled": true,
+            "clickable": true,
+            "focusable": true,
+            "selected": false,
+            "checked": false,
+            "password": false
+          },
+          {
+            "index": 3,
+            "parentIndex": 0,
+            "depth": 1,
+            "windowId": 41,
+            "text": "1234",
+            "description": null,
+            "resourceId": null,
+            "className": "android.widget.EditText",
+            "visible": true,
+            "enabled": true,
+            "clickable": false,
+            "focusable": false,
+            "selected": false,
+            "checked": false,
+            "password": true
+          }
+        ]
+      },
+      "expectedPackage": "org.example.reader",
+      "expectedWindowId": 41,
+      "nowElapsedRealtimeMs": 10100,
+      "maxAgeMs": 2500,
+      "uiStateFingerprint": "0f1c046965f5b150d1b708d1fda32b91c1f6cd0a7a9a847e0b68cabbc267b96d",
+      "evidenceSnapshotDigest": "bee4e7d515a262273402392bf79e97124473bd05fd74c38789818efcc6cc376b",
+      "markerIds": [
+        "screen.home"
+      ]
+    }
+  ]
+}

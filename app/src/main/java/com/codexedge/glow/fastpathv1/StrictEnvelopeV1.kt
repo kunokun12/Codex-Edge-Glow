@@ -47,7 +47,13 @@ internal object StrictEnvelopeV1 {
         return envelope
     }
 
-    fun parse(json: String): Map<String, Any?> {
+    fun parse(json: String): Map<String, Any?> = parseForVersion(json, VERSION)
+
+    /** Experimental exact-profile admission; never used by the v1 receiver. */
+    fun parseExperimentalV1_1(json: String): Map<String, Any?> =
+        parseForVersion(json, "tessera.fast-path/1.1")
+
+    private fun parseForVersion(json: String, expectedVersion: String): Map<String, Any?> {
         require(json.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Envelope too large" }
         val reader = JsonReader(StringReader(json))
         reader.isLenient = false
@@ -57,7 +63,7 @@ internal object StrictEnvelopeV1 {
         @Suppress("UNCHECKED_CAST")
         val envelope = parsed as Map<String, Any?>
         require(envelope.keys == topKeys) { "Unknown or missing envelope member" }
-        require(envelope["protocolVersion"] == "tessera.fast-path/1") { "Unsupported protocol" }
+        require(envelope["protocolVersion"] == expectedVersion) { "Unsupported protocol" }
         require(envelope["messageType"] in messageTypes) { "Unknown message type" }
         for (key in idKeys) {
             val id = envelope[key] as? String ?: error("Missing $key")
@@ -72,7 +78,29 @@ internal object StrictEnvelopeV1 {
         require((envelope["expiresAtEpochMs"] as? Long)?.let { it > 0 } == true)
         require(envelope["payload"] is Map<*, *>) { "Missing payload object" }
         validatePayload(envelope["messageType"] as String, envelope["payload"] as Map<*, *>)
+        if (expectedVersion == "tessera.fast-path/1.1") validateExperimentalV1_1Markers(envelope)
         return envelope
+    }
+
+    private fun validateExperimentalV1_1Markers(envelope: Map<String, Any?>) {
+        val payload = envelope["payload"] as Map<*, *>
+        val definition = when (envelope["messageType"]) {
+            "route.execute" -> payload["routeDefinition"] as Map<*, *>
+            "route.promote" -> (payload["promotionRecord"] as Map<*, *>)["routeDefinition"] as Map<*, *>
+            else -> return
+        }
+        val constraints = mutableListOf<Map<*, *>>()
+        constraints += definition["origin"] as Map<*, *>
+        constraints += definition["destination"] as Map<*, *>
+        for (step in definition["steps"] as List<*>) {
+            val item = step as Map<*, *>
+            constraints += item["expectedBefore"] as Map<*, *>
+            constraints += item["expectedAfter"] as Map<*, *>
+        }
+        constraints.forEach { constraint ->
+            val values = (constraint["requiredMarkers"] as List<*>).map { it as String }
+            UiStateFingerprintV1Experimental.validateMarkerIds(values)
+        }
     }
 
     private val routeId = Regex("[a-z][a-z0-9._-]{0,63}")

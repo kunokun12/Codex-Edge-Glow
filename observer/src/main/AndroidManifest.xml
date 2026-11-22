@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <permission android:name="org.tessera.observer.permission.READ_EVIDENCE"
+        android:protectionLevel="signature" />
+    <application android:allowBackup="false" android:label="Tessera Observer (candidate)"
+        android:supportsRtl="true" android:usesCleartextTraffic="false">
+        <service android:name=".ReadOnlyAccessibilityObserverService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true" android:label="Tessera read-only observer">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/observer_accessibility" />
+        </service>
+        <service android:name=".ObserverIpcService"
+            android:permission="org.tessera.observer.permission.READ_EVIDENCE"
+            android:exported="true" />
+    </application>
+</manifest>

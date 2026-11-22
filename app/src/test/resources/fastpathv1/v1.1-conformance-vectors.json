@@ -1,0 +1,32 @@
+{
+  "status": "EXPERIMENTAL_NOT_APPROVED",
+  "profile": "tessera.fast-path/1.1",
+  "vectors": [
+    {
+      "id": "cancel-request-exact-profile",
+      "request": {
+        "protocolVersion": "tessera.fast-path/1.1",
+        "messageType": "route.cancel",
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "taskId": "00000000-0000-4000-8000-000000000002",
+        "sessionId": "00000000-0000-4000-8000-000000000003",
+        "ownerId": "00000000-0000-4000-8000-000000000004",
+        "deviceBinding": {
+          "deviceSerial": "offline-test",
+          "companionPackage": "com.codexedge.glow",
+          "companionVersionCode": 18,
+          "signerCertificateSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "expiresAtEpochMs": 1900000000000,
+        "payload": { "reason": "owner-request" }
+      },
+      "expectedResponseType": "route.cancel.result"
+    },
+    {
+      "id": "execute-response-pairing",
+      "requestMessageType": "route.execute",
+      "expectedResponseType": "route.execute.result",
+      "forbiddenLegacyResponseType": "route.result"
+    }
+  ]
+}
