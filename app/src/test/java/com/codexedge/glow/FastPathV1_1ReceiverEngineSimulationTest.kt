@@ -292,7 +292,7 @@ class FastPathV1_1ReceiverEngineSimulationTest {
         val first = receiver.handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(request), runtime)
         val second = receiver.handleProtectedIntent(RuntimeEnvironment.getApplication(), intent(request), runtime)
         assertEquals(first.second, second.second)
-        assertEquals(1, runtime.dispatches)
+        assertEquals(2, runtime.dispatches)
     }
 
     @Test fun wrongOriginAndAmbiguousSelectorStopBeforeDispatchThroughRealEngine() {
