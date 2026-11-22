@@ -136,6 +136,8 @@ class FastPathExecutionEngineV1Test {
         var dispatchCount = 0
         var captureCount = 0
         var verifyCount = 0
+        var observationClock: () -> Long = { 0L }
+        var preserveVerificationObservationTime = false
         override fun installedApp(packageName: String) = identity
         override fun captureFresh(packageName: String, expectedWindowId: Int?, maxNodes: Int, maxAgeMs: Int): UiEvidenceV1? {
             captureCount++
@@ -147,12 +149,19 @@ class FastPathExecutionEngineV1Test {
         }
         override fun independentlyVerify(route: ExecutableRouteV1, expectedWindowId: Int, maxAgeMs: Int): VerificationEvidenceV1? {
             verifyCount++
-            return verification
+            val result = verification ?: return null
+            return if (preserveVerificationObservationTime) result else result.copy(
+                observedElapsedMs = observationClock(), ageMs = 0)
         }
     }
 
-    private fun engine(port: FastPathActionPortV1, enabled: Boolean = true, clock: () -> Long = { elapsed }) =
-        FastPathExecutionEngineV1(registry, journal, port, { enabled }, clock, { "boot-a" }, "e".repeat(64))
+    private fun engine(port: FastPathActionPortV1, enabled: Boolean = true, clock: (() -> Long)? = null): FastPathExecutionEngineV1 {
+        var simulatedElapsed = elapsed
+        val effectiveClock: () -> Long = clock ?: { ++simulatedElapsed }
+        (port as? SimulatedPort)?.observationClock = effectiveClock
+        return FastPathExecutionEngineV1(registry, journal, port, { enabled }, effectiveClock,
+            { "boot-a" }, "e".repeat(64))
+    }
 
     private fun request(route: PromotedRouteV1) = RequestedRouteV1(route.routeId,
         route.routeVersion, route.routeFingerprint, route.routeDefinition)
@@ -370,5 +379,23 @@ class FastPathExecutionEngineV1Test {
             validVerifier().copy(observedMarkers = emptySet())).reasonCode)
         assertEquals("destination-not-independently-verified", run(20,
             validVerifier().copy(observerBuildSha256 = "f".repeat(64))).reasonCode)
+    }
+
+    @Test fun preDispatchEvidenceCannotVerifyEvenWhenDestinationFieldsMatch() {
+        val route = promote()
+        val home = "b".repeat(64)
+        val destination = "c".repeat(64)
+        val port = SimulatedPort(mutableListOf(
+            evidence(home, "Home", targets = listOf(target())),
+            evidence(destination, "Guide")),
+            verification = validVerifier(fingerprint = destination, at = elapsed))
+        port.preserveVerificationObservationTime = true
+
+        val result = engine(port).execute(tuple(24), request(route), elapsed + 300_000L)
+
+        assertEquals("RECOVERY_REQUIRED", result.taskState)
+        assertEquals("destination-not-independently-verified", result.reasonCode)
+        assertEquals(1, port.dispatchCount)
+        assertEquals("UNAVAILABLE", result.verificationStatus)
     }
 }

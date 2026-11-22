@@ -269,12 +269,16 @@ internal class FastPathExecutionEngineV1(
             catch (_: Exception) { null }
         val verificationNanos = System.nanoTime() - verificationStart
         val verifyNow = elapsedClock()
+        val dispatchBoundaryElapsedMs = try { journal.record(tuple)?.dispatchPossibleElapsedMs }
+            catch (_: Exception) { null }
         val verified = verification != null && verification.verified &&
+            dispatchBoundaryElapsedMs != null &&
+            verification.observedElapsedMs > dispatchBoundaryElapsedMs &&
             verification.packageName == executable.packageName && verification.windowId == expectedWindow &&
             verification.destinationFingerprint == executable.destination.stateFingerprint &&
             verification.observedMarkers.containsAll(executable.destination.requiredMarkers) &&
             verification.ageMs in 0..MAX_EVIDENCE_AGE_MS.toLong() && verification.observedElapsedMs <= verifyNow &&
-            verifyNow - verification.observedElapsedMs <= MAX_EVIDENCE_AGE_MS &&
+            verifyNow - verification.observedElapsedMs in 0..MAX_EVIDENCE_AGE_MS.toLong() &&
             verification.independenceClass in APPROVED_INDEPENDENCE &&
             expectedObserverBuildSha256?.let { HEX_64.matches(it) && verification.observerBuildSha256 == it } == true
         if (!verified || !journal.finishVerified(tuple, fencingToken, executable.steps.size,

@@ -59,7 +59,9 @@ internal data class ExecutionRecordV1(
     val fencingToken: Long,
     val startedElapsedMs: Long,
     val leaseExpiresElapsedMs: Long,
-    val bootId: String
+    val bootId: String,
+    /** Monotonic time of the most recent durable DISPATCH_POSSIBLE boundary. */
+    val dispatchPossibleElapsedMs: Long?
 )
 
 internal data class LeaseAcquireV1(val acquired: Boolean, val reasonCode: String, val record: ExecutionRecordV1?)
@@ -87,7 +89,7 @@ internal data class CancellationResultV1(
  */
 internal class FastPathExecutionJournalV1(
     context: Context,
-    databaseName: String = "fastpath-execution-v1.db"
+    private val databaseName: String = "fastpath-execution-v1.db"
 ) : AutoCloseable {
     private val appContext = context.applicationContext
     private val markerFile = File(appContext.filesDir, "$databaseName.present")
@@ -95,8 +97,12 @@ internal class FastPathExecutionJournalV1(
     private val corruptionObserved = AtomicBoolean(false)
     private val helper = JournalDb(appContext, databaseName, markerFile, corruptionObserved)
 
-    private fun db(write: Boolean = false): SQLiteDatabase {
+    private fun db(write: Boolean = false): SQLiteDatabase = synchronized(DATABASE_OPEN_LOCK) {
         try {
+            val databaseFile = appContext.getDatabasePath(databaseName)
+            if (databaseFile.exists() && !markerFile.exists()) {
+                throw RegistryStorageException("execution-journal-marker-missing")
+            }
             val database = if (write) helper.writableDatabase else helper.readableDatabase
             if (!markerFile.exists()) {
                 val output = marker.startWrite()
@@ -110,7 +116,7 @@ internal class FastPathExecutionJournalV1(
             } else if (!markerFile.readBytes().contentEquals(MARKER_BYTES)) {
                 throw RegistryStorageException("execution-journal-marker-corrupt")
             }
-            return database
+            database
         } catch (error: RegistryStorageException) {
             throw error
         } catch (error: Throwable) {
@@ -234,8 +240,9 @@ internal class FastPathExecutionJournalV1(
                 lease.expiresAt <= nowElapsedMs || record.cancelRequested || isTerminal(record.taskState) ||
                 record.journalSequence != expectedSequence || record.currentStepPossible ||
                 nowElapsedMs - record.startedElapsedMs >= MAX_EXECUTION_MS) return false
-            database.execSQL("UPDATE execution_requests SET task_state='RUNNING',current_step_id=?,dispatch_possible=1,current_step_possible=1 WHERE request_id=? AND fencing_token=?",
-                arrayOf(stepId, tuple.requestId, fencingToken))
+            if (nowElapsedMs < record.startedElapsedMs) return false
+            database.execSQL("UPDATE execution_requests SET task_state='RUNNING',current_step_id=?,dispatch_possible=1,current_step_possible=1,dispatch_possible_elapsed_ms=? WHERE request_id=? AND fencing_token=?",
+                arrayOf(stepId, nowElapsedMs, tuple.requestId, fencingToken))
             appendEvent(database, tuple, "DISPATCH_POSSIBLE", stepId, "RUNNING", true)
             database.setTransactionSuccessful()
             return true
@@ -495,11 +502,11 @@ internal class FastPathExecutionJournalV1(
     }
 
     private fun readRecordByRequest(db: SQLiteDatabase, requestId: String): ExecutionRecordV1? = db.rawQuery(
-        "SELECT request_id,task_id,session_id,owner_id,device_serial,route_id,route_version,route_fingerprint,task_state,current_step_id,completed_step_count,journal_sequence,journal_head_digest,dispatch_possible,current_step_possible,cancel_requested,fencing_token,started_elapsed_ms,lease_expires_elapsed_ms,boot_id FROM execution_requests WHERE request_id=?",
+        "SELECT request_id,task_id,session_id,owner_id,device_serial,route_id,route_version,route_fingerprint,task_state,current_step_id,completed_step_count,journal_sequence,journal_head_digest,dispatch_possible,current_step_possible,cancel_requested,fencing_token,started_elapsed_ms,lease_expires_elapsed_ms,boot_id,dispatch_possible_elapsed_ms FROM execution_requests WHERE request_id=?",
         arrayOf(requestId)).use { c -> if (!c.moveToFirst()) null else c.toRecord() }
 
     private fun readRecordByTask(db: SQLiteDatabase, taskId: String): ExecutionRecordV1? = db.rawQuery(
-        "SELECT request_id,task_id,session_id,owner_id,device_serial,route_id,route_version,route_fingerprint,task_state,current_step_id,completed_step_count,journal_sequence,journal_head_digest,dispatch_possible,current_step_possible,cancel_requested,fencing_token,started_elapsed_ms,lease_expires_elapsed_ms,boot_id FROM execution_requests WHERE task_id=?",
+        "SELECT request_id,task_id,session_id,owner_id,device_serial,route_id,route_version,route_fingerprint,task_state,current_step_id,completed_step_count,journal_sequence,journal_head_digest,dispatch_possible,current_step_possible,cancel_requested,fencing_token,started_elapsed_ms,lease_expires_elapsed_ms,boot_id,dispatch_possible_elapsed_ms FROM execution_requests WHERE task_id=?",
         arrayOf(taskId)).use { c -> if (!c.moveToFirst()) null else c.toRecord() }
 
     private fun readEvent(db: SQLiteDatabase, requestId: String, sequence: Long): JournalEventV1? = db.rawQuery(
@@ -510,7 +517,8 @@ internal class FastPathExecutionJournalV1(
         ExecutionTupleV1(getString(0), getString(1), getString(2), getString(3), getString(4)),
         getString(5), getLong(6), getString(7), getString(8), if (isNull(9)) null else getString(9),
         getInt(10), getLong(11), getString(12), getInt(13) != 0, getInt(14) != 0,
-        getInt(15) != 0, getLong(16), getLong(17), getLong(18), getString(19))
+        getInt(15) != 0, getLong(16), getLong(17), getLong(18), getString(19),
+        if (isNull(20)) null else getLong(20))
 
     private fun android.database.Cursor.toEvent() = JournalEventV1(
         getLong(0), getString(1), getString(2), getString(3), getString(4), getString(5),
@@ -541,14 +549,24 @@ internal class FastPathExecutionJournalV1(
         override fun onCreate(db: SQLiteDatabase) {
             if (marker.exists()) throw RegistryStorageException("execution-database-missing")
             db.execSQL("CREATE TABLE journal_meta(singleton INTEGER PRIMARY KEY CHECK(singleton=1),schema_version INTEGER NOT NULL,fencing_counter INTEGER NOT NULL)")
-            db.execSQL("INSERT INTO journal_meta VALUES(1,1,0)")
-            db.execSQL("CREATE TABLE execution_requests(request_id TEXT PRIMARY KEY,task_id TEXT NOT NULL UNIQUE,session_id TEXT NOT NULL,owner_id TEXT NOT NULL,device_serial TEXT NOT NULL,route_id TEXT NOT NULL,route_version INTEGER NOT NULL,route_fingerprint TEXT NOT NULL,task_state TEXT NOT NULL,current_step_id TEXT,completed_step_count INTEGER NOT NULL,journal_sequence INTEGER NOT NULL,journal_head_digest TEXT NOT NULL,dispatch_possible INTEGER NOT NULL,current_step_possible INTEGER NOT NULL,cancel_requested INTEGER NOT NULL,fencing_token INTEGER NOT NULL,started_elapsed_ms INTEGER NOT NULL,lease_expires_elapsed_ms INTEGER NOT NULL,boot_id TEXT NOT NULL)")
+            db.execSQL("INSERT INTO journal_meta VALUES(1,$DB_VERSION,0)")
+            db.execSQL("CREATE TABLE execution_requests(request_id TEXT PRIMARY KEY,task_id TEXT NOT NULL UNIQUE,session_id TEXT NOT NULL,owner_id TEXT NOT NULL,device_serial TEXT NOT NULL,route_id TEXT NOT NULL,route_version INTEGER NOT NULL,route_fingerprint TEXT NOT NULL,task_state TEXT NOT NULL,current_step_id TEXT,completed_step_count INTEGER NOT NULL,journal_sequence INTEGER NOT NULL,journal_head_digest TEXT NOT NULL,dispatch_possible INTEGER NOT NULL,current_step_possible INTEGER NOT NULL,cancel_requested INTEGER NOT NULL,fencing_token INTEGER NOT NULL,started_elapsed_ms INTEGER NOT NULL,lease_expires_elapsed_ms INTEGER NOT NULL,boot_id TEXT NOT NULL,dispatch_possible_elapsed_ms INTEGER)")
             db.execSQL("CREATE TABLE execution_lease(singleton INTEGER PRIMARY KEY CHECK(singleton=1),request_id TEXT NOT NULL,task_id TEXT NOT NULL,session_id TEXT NOT NULL,owner_id TEXT NOT NULL,device_serial TEXT NOT NULL,expires_elapsed_ms INTEGER NOT NULL,fencing_token INTEGER NOT NULL,boot_id TEXT NOT NULL)")
             db.execSQL("CREATE TABLE journal_events(request_id TEXT NOT NULL,sequence INTEGER NOT NULL,task_id TEXT NOT NULL,session_id TEXT NOT NULL,owner_id TEXT NOT NULL,device_serial TEXT NOT NULL,event_type TEXT NOT NULL,step_id TEXT,task_state TEXT NOT NULL,dispatch_possible INTEGER NOT NULL,previous_digest TEXT NOT NULL,event_digest TEXT NOT NULL,PRIMARY KEY(request_id,sequence),FOREIGN KEY(request_id) REFERENCES execution_requests(request_id))")
             db.execSQL("CREATE INDEX journal_task_idx ON execution_requests(task_id)")
             db.version = DB_VERSION
         }
-        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) { throw RegistryStorageException("execution-journal-migration-required") }
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+            if (oldVersion != 1 || newVersion != 2) {
+                throw RegistryStorageException("execution-journal-migration-required")
+            }
+            // A v1 journal cannot prove when an already possible dispatch
+            // occurred. Keep its rows and event chain intact, but leave the new
+            // nullable boundary unset so no such operation can later be
+            // upgraded to independently verified success.
+            db.execSQL("ALTER TABLE execution_requests ADD COLUMN dispatch_possible_elapsed_ms INTEGER")
+            db.execSQL("UPDATE journal_meta SET schema_version=? WHERE singleton=1", arrayOf(newVersion))
+        }
         override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) { throw RegistryStorageException("execution-journal-downgrade-refused") }
         override fun onOpen(db: SQLiteDatabase) {
             super.onOpen(db)
@@ -566,7 +584,7 @@ internal class FastPathExecutionJournalV1(
                 "DISPATCH_POSSIBLE", "ACTION_ACCEPTED", "ACTION_REJECTED", "ACTION_UNCERTAIN",
                 "STEP_VERIFIED", "TASK_CANCELLED", "TASK_VERIFIED", "TASK_REFUSED",
                 "LEASE_EXPIRED", "RECOVERY_REQUIRED")
-            db.rawQuery("SELECT request_id,task_id,session_id,owner_id,device_serial,task_state,current_step_id,completed_step_count,journal_sequence,journal_head_digest,dispatch_possible FROM execution_requests", null).use { requests ->
+            db.rawQuery("SELECT request_id,task_id,session_id,owner_id,device_serial,task_state,current_step_id,completed_step_count,journal_sequence,journal_head_digest,dispatch_possible,started_elapsed_ms,dispatch_possible_elapsed_ms FROM execution_requests", null).use { requests ->
                 while (requests.moveToNext()) {
                     val request = requests.getString(0)
                     val taskId = requests.getString(1)
@@ -576,6 +594,12 @@ internal class FastPathExecutionJournalV1(
                     val taskState = requests.getString(5)
                     val currentStep = if (requests.isNull(6)) null else requests.getString(6)
                     val completedCount = requests.getInt(7)
+                    val dispatchPossible = requests.getInt(10) != 0
+                    val startedElapsedMs = requests.getLong(11)
+                    val dispatchPossibleElapsedMs = if (requests.isNull(12)) null else requests.getLong(12)
+                    if ((!dispatchPossible && dispatchPossibleElapsedMs != null) ||
+                        (dispatchPossibleElapsedMs != null && dispatchPossibleElapsedMs < startedElapsedMs))
+                        throw RegistryStorageException("execution-dispatch-boundary-invalid")
                     if (taskState !in taskStates) throw RegistryStorageException("execution-task-state-invalid")
                     var previous = ZERO_DIGEST
                     var expected = 1L
@@ -603,7 +627,7 @@ internal class FastPathExecutionJournalV1(
                     }
                     if (last == null || requests.getLong(8) != expected - 1 || requests.getString(9) != previous ||
                         last.taskState != taskState || last.stepId != currentStep ||
-                        verifiedSteps != completedCount || last.dispatchPossible != (requests.getInt(10) != 0))
+                        verifiedSteps != completedCount || last.dispatchPossible != dispatchPossible)
                         throw RegistryStorageException("execution-journal-head-mismatch")
                 }
             }
@@ -626,10 +650,11 @@ internal class FastPathExecutionJournalV1(
     }
 
     companion object {
+        private val DATABASE_OPEN_LOCK = Any()
         const val IDLE_LEASE_MS = 30_000L
         const val RENEW_INTERVAL_MS = 5_000L
         const val MAX_EXECUTION_MS = 120_000L
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
         private const val ZERO_DIGEST = "0000000000000000000000000000000000000000000000000000000000000000"
         private val MARKER_BYTES = "tessera.fast-path.execution-v1\n".toByteArray(Charsets.US_ASCII)
         private fun sha256(value: String) = MessageDigest.getInstance("SHA-256")
