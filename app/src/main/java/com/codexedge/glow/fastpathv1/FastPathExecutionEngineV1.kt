@@ -123,8 +123,13 @@ internal class FastPathExecutionEngineV1(
     private val bootId: () -> String,
     private val expectedObserverBuildSha256: String? = null
 ) {
-    fun execute(tuple: ExecutionTupleV1, requested: RequestedRouteV1): ExecutionOutcomeV1 {
+    fun execute(tuple: ExecutionTupleV1, requested: RequestedRouteV1,
+                requestDeadlineElapsedMs: Long): ExecutionOutcomeV1 {
         if (!runtimeEnabled()) return refused("execution-disabled")
+        val admittedAt = elapsedClock()
+        if (requestDeadlineElapsedMs <= admittedAt ||
+            requestDeadlineElapsedMs - admittedAt > MAX_REQUEST_TTL_MS)
+            return refused("request-expired")
         val lookupStart = System.nanoTime()
         val route = registry.findPromoted(requested.routeId, requested.routeVersion, requested.routeFingerprint)
             ?: return refused("route-not-authorized")
@@ -141,6 +146,7 @@ internal class FastPathExecutionEngineV1(
             app.versionName != executable.appVersionName || app.versionCode != executable.appVersionCode ||
             app.signerCertificateSha256 != executable.appSignerSha256)
             return refused("target-app-identity-mismatch", lookupNanos)
+        if (elapsedClock() >= requestDeadlineElapsedMs) return refused("request-expired", lookupNanos)
 
         val acquire = try {
             journal.acquire(tuple, executable.routeId, executable.routeVersion,
@@ -157,7 +163,9 @@ internal class FastPathExecutionEngineV1(
         }
         heartbeat.scheduleAtFixedRate({
             try {
-                if (!journal.renew(tuple, fencingToken, elapsedClock(), bootId())) heartbeatFailed.set(true)
+                val now = elapsedClock()
+                if (now >= requestDeadlineElapsedMs ||
+                    !journal.renew(tuple, fencingToken, now, bootId())) heartbeatFailed.set(true)
             } catch (_: Exception) { heartbeatFailed.set(true) }
         }, FastPathExecutionJournalV1.RENEW_INTERVAL_MS, FastPathExecutionJournalV1.RENEW_INTERVAL_MS,
             TimeUnit.MILLISECONDS)
@@ -168,6 +176,9 @@ internal class FastPathExecutionEngineV1(
         var dispatchNanos = 0L
 
         for ((index, step) in executable.steps.withIndex()) {
+            if (elapsedClock() >= requestDeadlineElapsedMs)
+                return failStep(tuple, fencingToken, index, lookupNanos, evidenceNanos, selectorNanos,
+                    dispatchNanos, "request-expired")
             if (heartbeatFailed.get())
                 return recover(tuple, fencingToken, index, lookupNanos, evidenceNanos, selectorNanos, dispatchNanos, "lease-lost")
             val now = elapsedClock()
@@ -201,6 +212,10 @@ internal class FastPathExecutionEngineV1(
                 return failStep(tuple, fencingToken, index, lookupNanos, evidenceNanos, selectorNanos, dispatchNanos,
                     if (candidates.isEmpty()) "selector-no-match" else "selector-ambiguous")
 
+            if (elapsedClock() >= requestDeadlineElapsedMs)
+                return failStep(tuple, fencingToken, index, lookupNanos, evidenceNanos, selectorNanos,
+                    dispatchNanos, "request-expired")
+
             val beforeDispatch = journal.record(tuple) ?: return recover(tuple, fencingToken, index,
                 lookupNanos, evidenceNanos, selectorNanos, dispatchNanos, "execution-journal-unavailable")
             val intentCommitted = try {
@@ -210,6 +225,9 @@ internal class FastPathExecutionEngineV1(
             if (!intentCommitted)
                 return failStep(tuple, fencingToken, index, lookupNanos, evidenceNanos, selectorNanos, dispatchNanos,
                     "dispatch-intent-not-committed")
+            if (elapsedClock() >= requestDeadlineElapsedMs)
+                return recover(tuple, fencingToken, index, lookupNanos, evidenceNanos, selectorNanos,
+                    dispatchNanos, "request-expired-after-dispatch-boundary")
             if (heartbeatFailed.get())
                 return recover(tuple, fencingToken, index, lookupNanos, evidenceNanos, selectorNanos, dispatchNanos, "lease-lost-before-dispatch")
 
@@ -243,6 +261,9 @@ internal class FastPathExecutionEngineV1(
                     "step-observation-journal-failed")
         }
 
+        if (elapsedClock() >= requestDeadlineElapsedMs)
+            return recover(tuple, fencingToken, executable.steps.size, lookupNanos, evidenceNanos,
+                selectorNanos, dispatchNanos, "request-expired-before-verification")
         val verificationStart = System.nanoTime()
         val verification = try { actionPort.independentlyVerify(executable, expectedWindow!!, MAX_EVIDENCE_AGE_MS) }
             catch (_: Exception) { null }
@@ -341,6 +362,7 @@ internal class FastPathExecutionEngineV1(
     companion object {
         private const val MAX_EVIDENCE_NODES = 4096
         private const val MAX_EVIDENCE_AGE_MS = 2500
+        private const val MAX_REQUEST_TTL_MS = 300_000L
         private val HEX_64 = Regex("[0-9a-f]{64}")
         private val APPROVED_INDEPENDENCE = setOf("separate-observer-process", "host-independent-reader")
     }

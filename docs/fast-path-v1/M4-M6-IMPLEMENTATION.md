@@ -36,6 +36,11 @@ verification must match package, window, destination fingerprint, destination
 markers, freshness, independence class, and a pinned observer build digest.
 `FastPathAndroidActionPortV1` contains the bounded Accessibility traversal and
 single-click adapter; it revalidates the selector and click target before action.
+The engine consumes the request's already-converted elapsed-realtime deadline,
+rejects expired or over-five-minute requests, and checks the deadline before
+evidence/action transitions and final verification. Conversion from the M1
+wall-clock expiry belongs at receiver admission and must never compare host and
+device monotonic clocks.
 
 The runtime gate defaults to disabled. The production receiver deliberately
 continues to return `UNIMPLEMENTED` for `route.execute`, `evidence.capture`, and

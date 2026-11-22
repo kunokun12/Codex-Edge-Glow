@@ -400,7 +400,11 @@ internal class FastPathRegistryV1(
             super.onConfigure(db)
             db.setForeignKeyConstraintsEnabled(true)
             db.execSQL("PRAGMA synchronous=FULL")
-            db.execSQL("PRAGMA journal_mode=DELETE")
+            val journalMode = db.rawQuery("PRAGMA journal_mode", null).use { c ->
+                if (c.moveToFirst()) c.getString(0) else ""
+            }
+            if (!journalMode.equals("delete", ignoreCase = true))
+                throw RegistryStorageException("registry-journal-mode-unavailable")
         }
 
         override fun onCreate(db: SQLiteDatabase) {

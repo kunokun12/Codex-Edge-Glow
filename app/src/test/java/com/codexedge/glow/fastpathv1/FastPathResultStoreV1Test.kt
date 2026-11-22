@@ -75,7 +75,7 @@ class FastPathResultStoreV1Test {
         assertThrows(RegistryStorageException::class.java) { store.save(request, wrong) }
         store.save(request, response())
         val bytes = resultFile.readBytes()
-        bytes[0] = 'f'.code.toByte()
+        bytes[bytes.lastIndex] = (bytes.last().toInt() xor 1).toByte()
         resultFile.writeBytes(bytes)
         assertThrows(RegistryStorageException::class.java) { store.existingResponse(request) }
     }

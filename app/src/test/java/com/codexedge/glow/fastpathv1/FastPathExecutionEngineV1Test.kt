@@ -172,7 +172,7 @@ class FastPathExecutionEngineV1Test {
             evidence(destination, "Details"))
         val port = SimulatedPort(states, verification = validVerifier(fingerprint = destination,
             markers = setOf("Details")))
-        val result = engine(port).execute(requestTuple, request(route))
+        val result = engine(port).execute(requestTuple, request(route), elapsed + 300_000L)
         assertEquals("VERIFIED_SUCCESS", result.taskState)
         assertEquals("VERIFIED", result.verificationStatus)
         assertEquals(2, result.completedStepCount)
@@ -183,9 +183,23 @@ class FastPathExecutionEngineV1Test {
     @Test fun disabledRuntimeCannotReachAccessibilityDispatch() {
         val route = promote()
         val port = SimulatedPort(mutableListOf())
-        val result = engine(port, enabled = false).execute(requestTuple, request(route))
+        val result = engine(port, enabled = false).execute(requestTuple, request(route), elapsed + 300_000L)
         assertEquals("REFUSED", result.taskState)
         assertEquals("execution-disabled", result.reasonCode)
+        assertEquals(0, port.dispatchCount)
+    }
+
+    @Test fun expiredRequestIsRefusedBeforeEvidenceOrAccessibilityWork() {
+        val route = promote()
+        val port = SimulatedPort(mutableListOf(evidence("b".repeat(64), "Home",
+            targets = listOf(target()))))
+        val result = engine(port).execute(requestTuple, request(route), elapsed)
+        assertEquals("REFUSED", result.taskState)
+        assertEquals("request-expired", result.reasonCode)
+        val overlong = engine(port).execute(tuple(27), request(route), elapsed + 300_001L)
+        assertEquals("REFUSED", overlong.taskState)
+        assertEquals("request-expired", overlong.reasonCode)
+        assertEquals(0, port.captureCount)
         assertEquals(0, port.dispatchCount)
     }
 
@@ -206,8 +220,8 @@ class FastPathExecutionEngineV1Test {
         val pool = Executors.newFixedThreadPool(2)
         try {
             val outcomes = pool.invokeAll(listOf(
-                Callable { engine(port).execute(requestTuple, request(route)) },
-                Callable { engine(port).execute(requestTuple, request(route)) }
+                Callable { engine(port).execute(requestTuple, request(route), elapsed + 300_000L) },
+                Callable { engine(port).execute(requestTuple, request(route), elapsed + 300_000L) }
             )).map { it.get() }
             assertEquals(1, port.dispatchCount)
             assertEquals(1, outcomes.count { it.taskState == "VERIFIED_SUCCESS" })
@@ -218,11 +232,11 @@ class FastPathExecutionEngineV1Test {
         val route = promote()
         val port = SimulatedPort(mutableListOf())
         val unknown = request(route).copy(routeId = "benchmark.unknown")
-        assertEquals("route-not-authorized", engine(port).execute(tuple(2), unknown).reasonCode)
+        assertEquals("route-not-authorized", engine(port).execute(tuple(2), unknown, elapsed + 300_000L).reasonCode)
         port.identity = port.identity.copy(versionCode = 2)
-        assertEquals("target-app-identity-mismatch", engine(port).execute(tuple(3), request(route)).reasonCode)
+        assertEquals("target-app-identity-mismatch", engine(port).execute(tuple(3), request(route), elapsed + 300_000L).reasonCode)
         port.identity = port.identity.copy(versionCode = 1, signerCertificateSha256 = "f".repeat(64))
-        assertEquals("target-app-identity-mismatch", engine(port).execute(tuple(4), request(route)).reasonCode)
+        assertEquals("target-app-identity-mismatch", engine(port).execute(tuple(4), request(route), elapsed + 300_000L).reasonCode)
         assertEquals(0, port.dispatchCount)
     }
 
@@ -231,12 +245,12 @@ class FastPathExecutionEngineV1Test {
         val port = SimulatedPort(mutableListOf())
         val changedDefinition = definition().toMutableMap().apply { put("packageName", "other.app") }
         assertEquals("route-definition-mismatch", engine(port).execute(requestTuple,
-            request(route).copy(routeDefinition = changedDefinition)).reasonCode)
+            request(route).copy(routeDefinition = changedDefinition), elapsed + 300_000L).reasonCode)
         wallNow = now + 60_000
-        assertEquals("route-not-authorized", engine(port).execute(tuple(21), request(route)).reasonCode)
+        assertEquals("route-not-authorized", engine(port).execute(tuple(21), request(route), elapsed + 300_000L).reasonCode)
         wallNow = now
         assertTrue(registry.applyRevocation(signedRevocation(route)).accepted)
-        assertEquals("route-not-authorized", engine(port).execute(tuple(22), request(route)).reasonCode)
+        assertEquals("route-not-authorized", engine(port).execute(tuple(22), request(route), elapsed + 300_000L).reasonCode)
         assertEquals(0, port.dispatchCount)
     }
 
@@ -244,7 +258,7 @@ class FastPathExecutionEngineV1Test {
         val route = promote()
         val home = "b".repeat(64)
         fun run(port: SimulatedPort, seed: Int) = engine(port, clock = { elapsed + 3_000 })
-            .execute(tuple(seed), request(route))
+            .execute(tuple(seed), request(route), elapsed + 300_000L)
         val stale = SimulatedPort(mutableListOf(evidence(home, "Home", targets = listOf(target()), captured = 0)))
         assertEquals("stale-or-ambiguous-evidence", run(stale, 5).reasonCode)
         val wrongPackageEvidence = evidence(home, "Home", targets = listOf(target())).copy(packageName = "other.app")
@@ -252,11 +266,11 @@ class FastPathExecutionEngineV1Test {
         assertEquals("stale-or-ambiguous-evidence", run(packagePort, 6).reasonCode)
         val wrongWindow = evidence(home, "Home", targets = listOf(target())).copy(windowIdAfter = 43)
         val windowPort = SimulatedPort(mutableListOf(wrongWindow))
-        val resultWindow = engine(windowPort).execute(tuple(7), request(route))
+        val resultWindow = engine(windowPort).execute(tuple(7), request(route), elapsed + 300_000L)
         assertEquals("stale-or-ambiguous-evidence", resultWindow.reasonCode)
         val unexpected = evidence("f".repeat(64), "Other", targets = listOf(target()))
         val originPort = SimulatedPort(mutableListOf(unexpected))
-        assertEquals("origin-state-mismatch", engine(originPort).execute(tuple(8), request(route)).reasonCode)
+        assertEquals("origin-state-mismatch", engine(originPort).execute(tuple(8), request(route), elapsed + 300_000L).reasonCode)
         assertEquals(0, stale.dispatchCount + packagePort.dispatchCount + windowPort.dispatchCount + originPort.dispatchCount)
     }
 
@@ -264,14 +278,14 @@ class FastPathExecutionEngineV1Test {
         val route = promote()
         val home = "b".repeat(64)
         val zero = SimulatedPort(mutableListOf(evidence(home, "Home")))
-        assertEquals("selector-no-match", engine(zero).execute(tuple(9), request(route)).reasonCode)
+        assertEquals("selector-no-match", engine(zero).execute(tuple(9), request(route), elapsed + 300_000L).reasonCode)
         val multiple = SimulatedPort(mutableListOf(evidence(home, "Home", targets = listOf(
             target(opaqueHandle = "target-a"), target(opaqueHandle = "target-b")))))
-        assertEquals("selector-ambiguous", engine(multiple).execute(tuple(10), request(route)).reasonCode)
+        assertEquals("selector-ambiguous", engine(multiple).execute(tuple(10), request(route), elapsed + 300_000L).reasonCode)
         val disabled = SimulatedPort(mutableListOf(evidence(home, "Home", targets = listOf(target(enabled = false)))))
-        assertEquals("selector-no-match", engine(disabled).execute(tuple(11), request(route)).reasonCode)
+        assertEquals("selector-no-match", engine(disabled).execute(tuple(11), request(route), elapsed + 300_000L).reasonCode)
         val invisible = SimulatedPort(mutableListOf(evidence(home, "Home", targets = listOf(target(visible = false)))))
-        assertEquals("selector-no-match", engine(invisible).execute(tuple(12), request(route)).reasonCode)
+        assertEquals("selector-no-match", engine(invisible).execute(tuple(12), request(route), elapsed + 300_000L).reasonCode)
         assertEquals(0, zero.dispatchCount + multiple.dispatchCount + disabled.dispatchCount + invisible.dispatchCount)
     }
 
@@ -286,7 +300,7 @@ class FastPathExecutionEngineV1Test {
                 throw IllegalStateException("fault after possible dispatch")
             }
         }
-        val result = engine(port).execute(tuple(13), request(route))
+        val result = engine(port).execute(tuple(13), request(route), elapsed + 300_000L)
         assertEquals("RECOVERY_REQUIRED", result.taskState)
         assertTrue(result.dispatchPossible)
         assertEquals(1, port.dispatchCount)
@@ -301,7 +315,7 @@ class FastPathExecutionEngineV1Test {
         db.close()
         val port = SimulatedPort(mutableListOf(evidence("b".repeat(64), "Home",
             targets = listOf(target()))))
-        val result = engine(port).execute(tuple(24), request(route))
+        val result = engine(port).execute(tuple(24), request(route), elapsed + 300_000L)
         assertEquals("REFUSED", result.taskState)
         assertEquals("dispatch-intent-not-committed", result.reasonCode)
         assertFalse(result.dispatchPossible)
@@ -314,7 +328,7 @@ class FastPathExecutionEngineV1Test {
             evidence("b".repeat(64), "Home", targets = listOf(target())),
             evidence("f".repeat(64), "Unexpected"),
             evidence("c".repeat(64), "Guide", targets = listOf(target(description = "Open Details")))))
-        val result = engine(port).execute(tuple(23), request(route))
+        val result = engine(port).execute(tuple(23), request(route), elapsed + 300_000L)
         assertEquals("RECOVERY_REQUIRED", result.taskState)
         assertEquals("expected-after-unverified", result.reasonCode)
         assertEquals(1, port.dispatchCount)
@@ -329,7 +343,7 @@ class FastPathExecutionEngineV1Test {
             val port = SimulatedPort(mutableListOf(
                 evidence(home, "Home", targets = listOf(target())),
                 evidence(destination, "Guide")), verification = verification)
-            val result = engine(port).execute(tuple(seed), request(route))
+            val result = engine(port).execute(tuple(seed), request(route), elapsed + 300_000L)
             assertEquals(1, port.dispatchCount)
             assertEquals("RECOVERY_REQUIRED", result.taskState)
             assertTrue(result.dispatchPossible)
