@@ -5,6 +5,8 @@ internal interface V1_1RuntimePorts {
     val executionGateApproved: Boolean
     val authorityAvailable: Boolean
     val observerApproved: Boolean
+    /** Returns a complete, correlated route.execute.result only after the injected runtime finishes. */
+    fun execute(request: Map<String, Any?>, nowEpochMs: Long): Map<String, Any?>? = null
     fun capture(request: Map<String, Any?>): CaptureResult
 }
 
@@ -16,6 +18,7 @@ internal object ProductionV1_1RuntimePorts : V1_1RuntimePorts {
     override val executionGateApproved = false
     override val authorityAvailable = false
     override val observerApproved = false
+    override fun execute(request: Map<String, Any?>, nowEpochMs: Long): Map<String, Any?>? = null
     override fun capture(request: Map<String, Any?>) = CaptureResult("OBSERVER_UNAVAILABLE", "observer-unavailable")
 }
 
@@ -31,14 +34,24 @@ internal object FastPathV1_1Runtime {
         require(request["protocolVersion"] == PROFILE) { "unsupported-protocol-version" }
         require(nowEpochMs > 0) { "invalid-clock" }
         val response = when (request["messageType"]) {
-            "route.execute" -> executionRefusal(request, nowEpochMs,
-                if (ports.executionGateApproved && ports.authorityAvailable && ports.observerApproved) "runtime-adapter-unavailable" else "runtime-approval-required")
+            "route.execute" -> execute(request, nowEpochMs, ports)
             "evidence.capture" -> captureResponse(request, nowEpochMs, ports.capture(request))
             "route.verify" -> verifyUnavailable(request, nowEpochMs)
             else -> throw IllegalArgumentException("unsupported-v1.1-operation")
         }
         ExperimentalEnvelopeV1_1.validateResponseCorrelation(request, response)?.let { error(it) }
         validateResponse(response)
+        return response
+    }
+
+    private fun execute(request: Map<String, Any?>, now: Long, ports: V1_1RuntimePorts): Map<String, Any?> {
+        // A request cannot set these gates. Only an explicitly injected runtime composition
+        // (used by isolated tests) can supply an executor; production stays closed by default.
+        if (!ports.executionGateApproved || !ports.authorityAvailable || !ports.observerApproved)
+            return executionRefusal(request, now, "runtime-approval-required")
+        val response = try { ports.execute(request, now) } catch (_: Exception) { null }
+            ?: return executionRefusal(request, now, "runtime-adapter-unavailable")
+        require(response["messageType"] == "route.execute.result") { "response-operation-invalid" }
         return response
     }
 
@@ -106,12 +119,44 @@ internal object FastPathV1_1Runtime {
         require(value["observedAtEpochMs"] is Long && (value["observedAtEpochMs"] as Long) > 0)
         when (requestType) {
             "route.execute" -> {
-                require(value["lease"] == mapOf("state" to "NONE", "expiresAtEpochMs" to null))
+                require(value.keys == outer)
                 val e = value["execution"] as? Map<*, *> ?: error("execution-invalid")
                 require(e.keys == setOf("currentStepId", "completedStepCount", "journalSequence", "dispatchPossible", "actionReceipt"))
-                require(e["dispatchPossible"] == false && e["actionReceipt"] == null && (e["completedStepCount"] as? Number)?.toLong() == 0L && (e["journalSequence"] as? Number)?.toLong() == 0L)
-                require(value["snapshot"] == null && value["verification"] == null && value["provenance"] == null)
-                require(value["status"] == "REFUSED" && value["reasonCode"] in setOf("runtime-approval-required", "runtime-adapter-unavailable"))
+                val lease = value["lease"] as? Map<*, *> ?: error("lease-invalid")
+                require(lease.keys == setOf("state", "expiresAtEpochMs") && lease["state"] in setOf("ACTIVE", "EXPIRED", "RELEASED", "NONE"))
+                require(lease["expiresAtEpochMs"] == null || (lease["expiresAtEpochMs"] as? Number)?.toLong()?.let { it > 0 } == true)
+                require(e["currentStepId"] == null || e["currentStepId"] is String)
+                require((e["completedStepCount"] as? Number)?.toLong()?.let { it >= 0 } == true)
+                require((e["journalSequence"] as? Number)?.toLong()?.let { it >= 0 } == true)
+                require(e["dispatchPossible"] is Boolean && e["actionReceipt"] in setOf("ACCEPTED", "REJECTED", "UNCERTAIN", null))
+                if (value["status"] == "VERIFIED_SUCCESS") {
+                    val verification = value["verification"] as? Map<*, *> ?: error("verification-required")
+                    require(verification.keys == setOf("status", "packageName", "windowId", "observedAtEpochMs", "ageMs",
+                        "destinationFingerprint", "independent", "observerId"))
+                    require(verification["status"] == "VERIFIED" && verification["independent"] == true &&
+                        verification["packageName"] is String && verification["observerId"] is String)
+                    require((verification["windowId"] as? Number)?.toLong()?.let { it >= 0 } == true &&
+                        (verification["observedAtEpochMs"] as? Number)?.toLong()?.let { it > 0 } == true &&
+                        (verification["ageMs"] as? Number)?.toDouble()?.let { it >= 0.0 } == true &&
+                        (verification["destinationFingerprint"] as? String)?.let { Regex("[0-9a-f]{64}").matches(it) } == true)
+                    require(e["dispatchPossible"] == true && e["actionReceipt"] == "ACCEPTED" &&
+                        (e["journalSequence"] as Number).toLong() > 0 && (e["completedStepCount"] as Number).toLong() > 0)
+                    val provenance = value["provenance"] as? Map<*, *> ?: error("provenance-required")
+                    require(provenance.keys == setOf("sourceCommit", "artifactSha256", "signerCertificateSha256", "versionName", "versionCode"))
+                    require((provenance["sourceCommit"] as? String)?.let { it.length in 7..64 } == true &&
+                        (provenance["artifactSha256"] as? String)?.let { Regex("[0-9a-f]{64}").matches(it) } == true &&
+                        (provenance["signerCertificateSha256"] as? String)?.let { Regex("[0-9a-f]{64}").matches(it) } == true &&
+                        (provenance["versionName"] as? String)?.isNotEmpty() == true &&
+                        (provenance["versionCode"] as? Number)?.toLong()?.let { it > 0 } == true)
+                    require(value["snapshot"] == null || value["snapshot"] is Map<*, *>)
+                } else if (e["dispatchPossible"] == false) {
+                    require(value["snapshot"] == null && value["verification"] == null && value["provenance"] == null)
+                    require(e["actionReceipt"] == null)
+                } else {
+                    require(value["status"] in setOf("RECOVERY_REQUIRED", "UNKNOWN"))
+                    require(value["verification"] == null || (value["verification"] as? Map<*, *>)?.get("status") != "VERIFIED")
+                    require(value["provenance"] == null)
+                }
             }
             "evidence.capture" -> {
                 val p = value["payload"] as? Map<*, *> ?: error("capture-payload-invalid")
