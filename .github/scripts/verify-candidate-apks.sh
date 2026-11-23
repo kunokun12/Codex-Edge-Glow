@@ -31,7 +31,8 @@ verify_apk() {
       echo '::error::Observer APK versionCode must be at least 3.'
       exit 1
     fi
-    if [[ ! "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || ! unzip -p "$apk" classes.dex | grep -aFq "$GITHUB_SHA"; then
+    unzip -p "$apk" classes.dex > "$RUNNER_TEMP/observer-classes.dex"
+    if [[ ! "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || ! grep -aFq "$GITHUB_SHA" "$RUNNER_TEMP/observer-classes.dex"; then
       echo '::error::Observer APK does not embed the exact GitHub source commit.'
       exit 1
     fi
