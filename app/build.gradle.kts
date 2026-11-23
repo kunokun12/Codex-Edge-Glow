@@ -13,8 +13,8 @@ android {
         applicationId = "com.codexedge.glow"
         minSdk = 26
         targetSdk = 28
-        versionCode = 20
-        versionName = "2.6.0-schema3-observer-evidence"
+        versionCode = 21
+        versionName = "2.7.0-observer-bind-diagnostics"
     }
 
     // The APK must remain debuggable for the existing local run-as based MCP

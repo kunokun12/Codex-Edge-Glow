@@ -129,6 +129,7 @@ internal object FastPathV1_1Runtime {
         "observer-timeout", "observer-reply-timeout", "observer-wait-interrupted" -> "TIMEOUT"
         "unsupported-evidence-profile" -> "UNSUPPORTED_PROFILE"
         "observer-unavailable", "observer-service-unresolved", "observer-bind-rejected", "observer-bind-failed",
+        "observer-bind-lifecycle", "observer-bind-invalid-intent", "observer-bind-runtime",
         "observer-service-disconnected", "observer-binding-died", "observer-null-binding", "observer-null-binder",
         "observer-send-failed", "observer-transport-failed", "observer-response-invalid", "observer-caller-invalid",
         "observer-protocol-invalid", "observer-request-invalid", "observer-timebase-unavailable",

@@ -16,8 +16,8 @@ android {
         applicationId = "org.tessera.observer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0-schema3-evidence"
+        versionCode = 4
+        versionName = "0.4.0-schema3-evidence"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["tesseraSourceCommit"] = sourceCommit
     }

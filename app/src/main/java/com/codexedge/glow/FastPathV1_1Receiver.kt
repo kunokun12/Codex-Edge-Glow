@@ -19,12 +19,22 @@ class FastPathV1_1Receiver : BroadcastReceiver() {
         if (!isOrderedBroadcast) return
         val pending = goAsync()
         worker.execute {
-            val (code, data) = handleProtectedIntent(context, intent, AndroidV1_1RuntimePorts(context))
-            pending.setResultCode(code)
-            pending.setResultData(data)
-            pending.finish()
+            try {
+                val (code, data) = handleProtectedIntent(context, intent, runtimePortsFactory(context))
+                pending.setResultCode(code)
+                pending.setResultData(data)
+            } catch (_: Exception) {
+                pending.setResultCode(Activity.RESULT_CANCELED)
+                pending.setResultData("REJECTED")
+            } finally {
+                // goAsync keeps this ordered result alive until both local dispatch and
+                // any bounded Observer IPC wait have ended.
+                pending.finish()
+            }
         }
     }
+
+    internal var runtimePortsFactory: (Context) -> V1_1RuntimePorts = { AndroidV1_1RuntimePorts(it) }
 
     /** Faithful protected receiver parsing/dispatch boundary, callable by JVM/Robolectric tests. */
     internal fun handleProtectedIntent(context: Context, intent: Intent,

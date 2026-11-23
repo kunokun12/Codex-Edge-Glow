@@ -3,6 +3,7 @@ package com.codexedge.glow.fastpathv1
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ReceiverCallNotAllowedException
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -13,6 +14,7 @@ import android.os.Message
 import android.os.Messenger
 import android.os.RemoteException
 import android.os.SystemClock
+import android.util.Log
 import java.security.SecureRandom
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
@@ -133,9 +135,34 @@ internal class ObserverIpcClientV1(
 }
 
 /** Android Messenger binding adapter with explicit lifecycle and permission failure results. */
-private class AndroidMessengerObserverTransportV1(private val context: Context) : ObserverIpcTransportV1 {
+internal interface ObserverServiceBinderV1 {
+    fun bind(intent: Intent, connection: ServiceConnection, flags: Int): Boolean
+    fun unbind(connection: ServiceConnection)
+}
+
+/** Maps platform failures to bounded categories without logging exception messages or stack data. */
+internal object ObserverBindFailureV1 {
+    data class Diagnostic(val reasonCode: String, val category: String, val exceptionClass: String)
+
+    fun classify(failure: Exception): Diagnostic = when (failure) {
+        is SecurityException -> Diagnostic("observer-permission-denied", "permission", "SecurityException")
+        is ReceiverCallNotAllowedException -> Diagnostic("observer-bind-lifecycle", "receiver-context", "ReceiverCallNotAllowedException")
+        is IllegalStateException -> Diagnostic("observer-bind-lifecycle", "lifecycle", "IllegalStateException")
+        is IllegalArgumentException -> Diagnostic("observer-bind-invalid-intent", "invalid-intent", "IllegalArgumentException")
+        else -> Diagnostic("observer-bind-runtime", "runtime", safeClassName(failure))
+    }
+
+    private fun safeClassName(failure: Exception): String = failure.javaClass.simpleName
+        .takeIf { it.matches(Regex("[A-Za-z][A-Za-z0-9]{0,63}")) } ?: "OtherException"
+}
+
+/** Android Messenger binding adapter with explicit lifecycle and permission failure results. */
+internal class AndroidMessengerObserverTransportV1(
+    private val context: Context,
+    private val binder: ObserverServiceBinderV1 = ContextObserverServiceBinderV1(context.applicationContext)
+) : ObserverIpcTransportV1 {
     override fun exchange(request: ObserverIpcRequestMessageV1, timeoutMs: Long): ObserverIpcTransportResultV1 {
-        val component = ComponentName(OBSERVER_PACKAGE, "$OBSERVER_PACKAGE.ObserverIpcService")
+        val component = ComponentName(OBSERVER_PACKAGE, OBSERVER_SERVICE_CLASS)
         try {
             @Suppress("DEPRECATION")
             context.packageManager.getServiceInfo(component, 0)
@@ -203,13 +230,18 @@ private class AndroidMessengerObserverTransportV1(private val context: Context) 
         }
 
         try {
-            bound = try { context.bindService(Intent().setComponent(component), connection, Context.BIND_AUTO_CREATE) }
-                catch (_: SecurityException) {
-                    finish(ObserverIpcTransportResultV1.Failure("observer-permission-denied")); false
-                } catch (_: Exception) {
-                    finish(ObserverIpcTransportResultV1.Failure("observer-bind-failed")); false
-                }
-            if (!bound && result.get() == null) finish(ObserverIpcTransportResultV1.Failure("observer-bind-rejected"))
+            bound = try {
+                binder.bind(Intent().setComponent(component), connection, Context.BIND_AUTO_CREATE)
+            } catch (failure: Exception) {
+                val diagnostic = ObserverBindFailureV1.classify(failure)
+                Log.w(LOG_TAG, "bindService failed category=${diagnostic.category} exception=${diagnostic.exceptionClass}")
+                finish(ObserverIpcTransportResultV1.Failure(diagnostic.reasonCode))
+                false
+            }
+            if (!bound && result.get() == null) {
+                Log.w(LOG_TAG, "bindService rejected category=rejected exception=none")
+                finish(ObserverIpcTransportResultV1.Failure("observer-bind-rejected"))
+            }
             if (!completed.await(timeoutMs.coerceIn(1L, MAX_TIMEOUT_MS), TimeUnit.MILLISECONDS))
                 finish(ObserverIpcTransportResultV1.Failure("observer-reply-timeout"))
             return result.get() ?: ObserverIpcTransportResultV1.Failure("observer-reply-timeout")
@@ -217,7 +249,7 @@ private class AndroidMessengerObserverTransportV1(private val context: Context) 
             Thread.currentThread().interrupt()
             return ObserverIpcTransportResultV1.Failure("observer-wait-interrupted")
         } finally {
-            if (bound) runCatching { context.unbindService(connection) }
+            if (bound) runCatching { binder.unbind(connection) }
             callbackThread.quitSafely()
         }
     }
@@ -256,6 +288,8 @@ private class AndroidMessengerObserverTransportV1(private val context: Context) 
 
     companion object {
         private const val OBSERVER_PACKAGE = "org.tessera.observer"
+        private const val OBSERVER_SERVICE_CLASS = "org.tessera.observer.ObserverIpcService"
+        private const val LOG_TAG = "TesseraObserverIPC"
         private const val MSG_EVIDENCE = 1
         private const val MAX_TIMEOUT_MS = 5000L
         private val RESPONSE_KEYS = setOf("protocol", "outcome", "reasonCode", "requestId", "executionId", "challenge",
@@ -263,6 +297,14 @@ private class AndroidMessengerObserverTransportV1(private val context: Context) 
             "evidenceDigest", "snapshotJson", "observerPackage", "observerArtifactIdentity", "observerVersionName",
             "observerVersionCode", "observerSignerSha256", "observerArtifactSha256", "observerSourceCommit", "complete", "verified")
     }
+}
+
+private class ContextObserverServiceBinderV1(context: Context) : ObserverServiceBinderV1 {
+    private val applicationContext = context.applicationContext
+    override fun bind(intent: Intent, connection: ServiceConnection, flags: Int): Boolean =
+        applicationContext.bindService(intent, connection, flags)
+
+    override fun unbind(connection: ServiceConnection) = applicationContext.unbindService(connection)
 }
 
 /** Android runtime composition returns precise diagnostics; candidate digest is never promoted to a full snapshot. */

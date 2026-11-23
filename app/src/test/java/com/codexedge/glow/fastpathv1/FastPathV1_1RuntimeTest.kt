@@ -34,6 +34,30 @@ class FastPathV1_1RuntimeTest {
         FastPathV1_1Runtime.validateResponse(response)
     }
 
+    @Test fun bindFailureCategoriesRemainSchemaValidAndCarryNoEvidence() {
+        val request = request("evidence.capture") + ("payload" to mapOf(
+            "expectedPackage" to "org.example.app", "expectedWindowId" to 1L,
+            "maxAgeMs" to 2500L, "maxNodes" to 4096L))
+        for (reason in listOf("observer-bind-rejected", "observer-bind-lifecycle",
+                "observer-bind-invalid-intent", "observer-bind-runtime")) {
+            val ports = object : V1_1RuntimePorts {
+                override val executionGateApproved = false
+                override val authorityAvailable = false
+                override val observerApproved = false
+                override fun capture(request: Map<String, Any?>) =
+                    CaptureResult("OBSERVER_UNAVAILABLE", reason, null, null)
+            }
+            val response = FastPathV1_1Runtime.dispatch(request, 1900000000000L, ports)
+            assertEquals(reason, response["reasonCode"])
+            assertEquals("REFUSED", response["status"])
+            val payload = response["payload"] as Map<*, *>
+            assertEquals("OBSERVER_UNAVAILABLE", payload["captureOutcome"])
+            assertNull(payload["snapshot"])
+            assertNull(payload["producer"])
+            FastPathV1_1Runtime.validateResponse(response)
+        }
+    }
+
     @Test fun completeObserverCaptureReturnsSchemaThreeSnapshotAndIndependentProducer() {
         val req = request("evidence.capture") + ("payload" to mapOf(
             "expectedPackage" to "org.example.app", "expectedWindowId" to 1L, "maxAgeMs" to 2500L, "maxNodes" to 4096L))
