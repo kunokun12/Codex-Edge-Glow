@@ -37,12 +37,6 @@ verify_apk() {
       exit 1
     fi
   fi
-    done < <(unzip -Z1 "$apk")
-    if [[ "$source_commit_found" != true ]]; then
-      echo '::error::Observer APK does not embed the exact GitHub source commit.'
-      exit 1
-    fi
-  fi
   {
     echo "artifact=$label"
     echo "package=$package"
