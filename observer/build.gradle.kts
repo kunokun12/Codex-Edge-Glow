@@ -19,9 +19,8 @@ android {
         versionCode = 3
         versionName = "0.3.0-schema3-evidence"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "TESSERA_SOURCE_COMMIT", "\"$sourceCommit\"")
+        manifestPlaceholders["tesseraSourceCommit"] = sourceCommit
     }
-    buildFeatures { buildConfig = true }
     signingConfigs {
         getByName("debug") {
             if (!signingPath.isNullOrBlank()) {

@@ -130,8 +130,10 @@ class ObserverIpcService : Service() {
             while (true) { val count = stream.read(buffer); if (count < 0) break; digest.update(buffer, 0, count) }
             digest.digest().joinToString("") { b -> "%02x".format(b) }
         }
+        val sourceCommit = packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
+            .metaData?.getString(SOURCE_COMMIT_META)?.takeIf { it.matches(SOURCE_COMMIT_REGEX) } ?: ""
         ObserverArtifactV1("$packageName/$versionCode/$certDigest", info.versionName ?: "",
-            versionCode, certDigest, apkSha, BuildConfig.TESSERA_SOURCE_COMMIT)
+            versionCode, certDigest, apkSha, sourceCommit)
     }.getOrElse { ObserverArtifactV1("$packageName/0/unknown", "", 0, "", "", "") }
 
     private fun sha256(bytes: ByteArray): String = java.security.MessageDigest.getInstance("SHA-256")
@@ -144,6 +146,8 @@ class ObserverIpcService : Service() {
 
     companion object {
         private const val COMPANION_PACKAGE = "com.codexedge.glow"
+        private const val SOURCE_COMMIT_META = "org.tessera.observer.SOURCE_COMMIT"
+        private val SOURCE_COMMIT_REGEX = Regex("[0-9a-f]{40}")
         private const val MSG_EVIDENCE = 1
         private val REASON_REGEX = Regex("[a-z][a-z0-9-]{0,63}")
         private val BOOT_ID_REGEX = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")

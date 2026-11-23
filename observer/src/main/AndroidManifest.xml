@@ -3,6 +3,7 @@
         android:protectionLevel="signature" />
     <application android:allowBackup="false" android:label="Tessera Observer (candidate)"
         android:supportsRtl="true" android:usesCleartextTraffic="false">
+        <meta-data android:name="org.tessera.observer.SOURCE_COMMIT" android:value="${tesseraSourceCommit}" />
         <service android:name=".ReadOnlyAccessibilityObserverService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true" android:label="Tessera read-only observer">
