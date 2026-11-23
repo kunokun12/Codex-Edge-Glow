@@ -2,11 +2,6 @@ package org.tessera.observer
 
 import org.junit.Assert.*
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-
-@RunWith(RobolectricTestRunner::class)
-
 class ObserverIpcPolicyTest {
     private val boot = "12345678-1234-1234-1234-123456789abc"
     private val request = ObserverIpcRequestV1("tessera.observer-ipc/1", "c".repeat(48),

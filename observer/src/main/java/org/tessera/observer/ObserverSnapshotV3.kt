@@ -1,7 +1,8 @@
 package org.tessera.observer
 
-import org.json.JSONArray
-import org.json.JSONObject
+import com.google.gson.JsonArray
+import com.google.gson.JsonNull
+import com.google.gson.JsonObject
 import java.security.MessageDigest
 
 /** Schema-3 structural evidence. UI text and descriptions are intentionally never serialized. */
@@ -37,32 +38,36 @@ internal object ObserverSnapshotV3 {
                 (node.resourceId == null || node.resourceId.length <= 256) &&
                 (node.className == null || node.className.length <= 200))
         }
-        val nodeJson = JSONArray()
+        val nodeJson = JsonArray()
         snapshot.nodes.forEach { node ->
-            val item = JSONObject()
-                .put("windowId", node.windowId).put("parentIndex", node.parentIndex).put("depth", node.depth)
-                .put("enabled", node.enabled).put("clickable", node.clickable).put("visible", node.visible)
-                .put("focusable", node.focusable).put("selected", node.selected).put("checked", node.checked)
-                .put("password", node.password).put("bounds", JSONArray(node.bounds))
-            node.resourceId?.let { item.put("resourceId", it) }
-            node.className?.let { item.put("className", it) }
-            nodeJson.put(item)
+            val item = JsonObject().apply {
+                addProperty("windowId", node.windowId); addProperty("parentIndex", node.parentIndex); addProperty("depth", node.depth)
+                addProperty("enabled", node.enabled); addProperty("clickable", node.clickable); addProperty("visible", node.visible)
+                addProperty("focusable", node.focusable); addProperty("selected", node.selected); addProperty("checked", node.checked)
+                addProperty("password", node.password)
+                add("bounds", JsonArray().apply { node.bounds.forEach(::add) })
+                node.resourceId?.let { addProperty("resourceId", it) }
+                node.className?.let { addProperty("className", it) }
+            }
+            nodeJson.add(item)
         }
-        val traversal = JSONObject()
-            .put("rootCount", 1).put("visitedNodeCount", snapshot.nodes.size)
-            .put("maxDepth", MAX_DEPTH).put("nodeTraversalLimit", snapshot.nodeLimit)
-            .put("timeBudgetMs", TIME_BUDGET_MS).put("durationMs", snapshot.durationMs)
-            .put("timeBudgetExceeded", false).put("truncationReason", JSONObject.NULL)
-            .put("traversalError", JSONObject.NULL).put("collectionSuccess", true)
-            .put("windowStable", true).put("windowIdBefore", snapshot.windowId).put("windowIdAfter", snapshot.windowId)
-        return JSONObject()
-            .put("schema", 3).put("snapshotId", snapshot.snapshotId).put("packageName", snapshot.packageName)
-            .put("source", "accessibility").put("windowId", snapshot.windowId)
-            .put("windowIdBefore", snapshot.windowId).put("windowIdAfter", snapshot.windowId)
-            .put("capturedAtEpochMs", snapshot.capturedAtEpochMs)
-            .put("capturedAtElapsedRealtimeMs", snapshot.capturedElapsedRealtimeMs).put("ageMs", 0)
-            .put("treeComplete", true).put("truncated", false).put("nodes", nodeJson)
-            .put("traversal", traversal).put("sha256", snapshot.digest).toString()
+        val traversal = JsonObject().apply {
+            addProperty("rootCount", 1); addProperty("visitedNodeCount", snapshot.nodes.size)
+            addProperty("maxDepth", MAX_DEPTH); addProperty("nodeTraversalLimit", snapshot.nodeLimit)
+            addProperty("timeBudgetMs", TIME_BUDGET_MS); addProperty("durationMs", snapshot.durationMs)
+            addProperty("timeBudgetExceeded", false); add("truncationReason", JsonNull.INSTANCE)
+            add("traversalError", JsonNull.INSTANCE); addProperty("collectionSuccess", true)
+            addProperty("windowStable", true); addProperty("windowIdBefore", snapshot.windowId); addProperty("windowIdAfter", snapshot.windowId)
+        }
+        return JsonObject().apply {
+            addProperty("schema", 3); addProperty("snapshotId", snapshot.snapshotId); addProperty("packageName", snapshot.packageName)
+            addProperty("source", "accessibility"); addProperty("windowId", snapshot.windowId)
+            addProperty("windowIdBefore", snapshot.windowId); addProperty("windowIdAfter", snapshot.windowId)
+            addProperty("capturedAtEpochMs", snapshot.capturedAtEpochMs)
+            addProperty("capturedAtElapsedRealtimeMs", snapshot.capturedElapsedRealtimeMs); addProperty("ageMs", 0)
+            addProperty("treeComplete", true); addProperty("truncated", false); add("nodes", nodeJson)
+            add("traversal", traversal); addProperty("sha256", snapshot.digest)
+        }.toString()
     }
 
     private fun StringBuilder.field(value: String?) {
