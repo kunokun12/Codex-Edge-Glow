@@ -39,17 +39,15 @@ class ReadOnlyAccessibilityObserverService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) {
-            ObserverSnapshotStore.clear()
-            return
-        }
-        when (val result = captureActiveWindow()) {
-            is ObserverSnapshotResult.Captured -> ObserverSnapshotStore.put(result.snapshot)
-            is ObserverSnapshotResult.Refused -> ObserverSnapshotStore.clear()
-        }
+        // Events invalidate the previous view. A caller must request a fresh,
+        // exact package/window capture through the authenticated IPC path.
+        ObserverSnapshotStore.clear()
     }
 
-    override fun onInterrupt() { ObserverSnapshotStore.clear() }
+    override fun onInterrupt() {
+        if (activeService === this) activeService = null
+        ObserverSnapshotStore.clear()
+    }
 
     override fun onDestroy() {
         if (activeService === this) activeService = null
