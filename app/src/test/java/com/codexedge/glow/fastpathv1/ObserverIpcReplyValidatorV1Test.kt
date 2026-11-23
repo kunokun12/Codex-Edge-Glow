@@ -70,7 +70,8 @@ class ObserverIpcReplyValidatorV1Test {
         assertThrows(IllegalArgumentException::class.java) { validate(good.copy(snapshotJson = malformedTree)) }
         val leakedText = snapshotJson.replace("\"visible\":true", "\"visible\":true,\"text\":\"secret\"")
         assertThrows(IllegalArgumentException::class.java) { validate(good.copy(snapshotJson = leakedText)) }
-        assertThrows(IllegalArgumentException::class.java) { validate(good.copy(snapshotJson = snapshotJson.dropLast(2) + ",\"sha256\":\"bad\"}")) }
+        val badDigest = JsonParser.parseString(snapshotJson).asJsonObject.apply { addProperty("sha256", "bad") }.toString()
+        assertThrows(IllegalArgumentException::class.java) { validate(good.copy(snapshotJson = badDigest)) }
         assertThrows(IllegalArgumentException::class.java) { validate(good.copy(snapshotJson = "x".repeat(ObserverSnapshotV3Codec.MAX_BYTES + 1))) }
     }
 

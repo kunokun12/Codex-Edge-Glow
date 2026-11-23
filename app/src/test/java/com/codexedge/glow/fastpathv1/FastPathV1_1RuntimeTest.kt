@@ -35,7 +35,8 @@ class FastPathV1_1RuntimeTest {
     }
 
     @Test fun completeObserverCaptureReturnsSchemaThreeSnapshotAndIndependentProducer() {
-        val req = request("evidence.capture")
+        val req = request("evidence.capture") + ("payload" to mapOf(
+            "expectedPackage" to "org.example.app", "expectedWindowId" to 1L, "maxAgeMs" to 2500L, "maxNodes" to 4096L))
         val payload = req["payload"] as Map<*, *>
         val snapshotId = "00000000-0000-4000-8000-000000000010"
         val snapshot = mapOf<String, Any?>(
