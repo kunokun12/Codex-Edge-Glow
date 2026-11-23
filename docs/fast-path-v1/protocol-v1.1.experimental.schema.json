@@ -1,5 +1,5 @@
 {
-  "$comment": "EXPERIMENTAL M9.1 proposed amendment to M8 draft. NOT PRODUCTION-APPROVED. The capture/verification refusal shapes and reason-code bindings require owner protocol approval.",
+  "$comment": "EXPERIMENTAL M9.1 proposed amendment to M8 draft. NOT PRODUCTION-APPROVED. Observer transport and snapshot refusal codes are diagnostic detail only; they do not imply approval or verification.",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "tessera://fast-path/v1.1/protocol",
   "title": "Tessera Fast Path v1.1 DRAFT messages",
@@ -2305,12 +2305,106 @@
                 "const": "REFUSED"
               },
               "reasonCode": {
-                "const": "observer-unavailable"
+                "enum": [
+                  "observer-unavailable",
+                  "observer-service-unresolved",
+                  "observer-bind-rejected",
+                  "observer-bind-failed",
+                  "observer-service-disconnected",
+                  "observer-binding-died",
+                  "observer-null-binding",
+                  "observer-null-binder",
+                  "observer-send-failed",
+                  "observer-transport-failed",
+                  "observer-response-invalid",
+                  "observer-caller-invalid",
+                  "observer-protocol-invalid",
+                  "observer-request-invalid",
+                  "observer-timebase-unavailable",
+                  "observer-ipc-identity-mismatch",
+                  "observer-ipc-request-invalid",
+                  "observer-ipc-challenge-invalid",
+                  "observer-ipc-timebase-invalid",
+                  "observer-ipc-protocol-invalid",
+                  "observer-ipc-package-missing",
+                  "observer-ipc-window-missing",
+                  "observer-ipc-capture-time-missing",
+                  "observer-ipc-digest-missing",
+                  "observer-ipc-correlation-mismatch",
+                  "observer-ipc-refusal-code-missing",
+                  "observer-ipc-refusal-code-invalid",
+                  "observer-ipc-refusal-carried-evidence",
+                  "observer-ipc-outcome-invalid",
+                  "observer-ipc-window-mismatch",
+                  "observer-ipc-digest-invalid",
+                  "observer-ipc-package-mismatch",
+                  "observer-ipc-artifact-invalid",
+                  "observer-ipc-forged-verification",
+                  "ipc-caller-invalid",
+                  "ipc-protocol-invalid",
+                  "ipc-request-invalid",
+                  "ipc-correlation-invalid",
+                  "ipc-challenge-invalid",
+                  "ipc-boundary-invalid",
+                  "ipc-timebase-mismatch",
+                  "ipc-timebase-unavailable",
+                  "ipc-challenge-replayed",
+                  "snapshot-package-mismatch",
+                  "snapshot-window-mismatch",
+                  "snapshot-digest-invalid"
+                ]
               },
               "payload": {
                 "properties": {
                   "reasonCode": {
-                    "const": "observer-unavailable"
+                    "enum": [
+                      "observer-unavailable",
+                      "observer-service-unresolved",
+                      "observer-bind-rejected",
+                      "observer-bind-failed",
+                      "observer-service-disconnected",
+                      "observer-binding-died",
+                      "observer-null-binding",
+                      "observer-null-binder",
+                      "observer-send-failed",
+                      "observer-transport-failed",
+                      "observer-response-invalid",
+                      "observer-caller-invalid",
+                      "observer-protocol-invalid",
+                      "observer-request-invalid",
+                      "observer-timebase-unavailable",
+                      "observer-ipc-identity-mismatch",
+                      "observer-ipc-request-invalid",
+                      "observer-ipc-challenge-invalid",
+                      "observer-ipc-timebase-invalid",
+                      "observer-ipc-protocol-invalid",
+                      "observer-ipc-package-missing",
+                      "observer-ipc-window-missing",
+                      "observer-ipc-capture-time-missing",
+                      "observer-ipc-digest-missing",
+                      "observer-ipc-correlation-mismatch",
+                      "observer-ipc-refusal-code-missing",
+                      "observer-ipc-refusal-code-invalid",
+                      "observer-ipc-refusal-carried-evidence",
+                      "observer-ipc-outcome-invalid",
+                      "observer-ipc-window-mismatch",
+                      "observer-ipc-digest-invalid",
+                      "observer-ipc-package-mismatch",
+                      "observer-ipc-artifact-invalid",
+                      "observer-ipc-forged-verification",
+                      "ipc-caller-invalid",
+                      "ipc-protocol-invalid",
+                      "ipc-request-invalid",
+                      "ipc-correlation-invalid",
+                      "ipc-challenge-invalid",
+                      "ipc-boundary-invalid",
+                      "ipc-timebase-mismatch",
+                      "ipc-timebase-unavailable",
+                      "ipc-challenge-replayed",
+                      "snapshot-package-mismatch",
+                      "snapshot-window-mismatch",
+                      "snapshot-digest-invalid"
+                    ]
                   },
                   "snapshot": {
                     "type": "null"
@@ -2341,12 +2435,22 @@
                 "const": "REFUSED"
               },
               "reasonCode": {
-                "const": "snapshot-incomplete"
+                "enum": [
+                  "snapshot-incomplete",
+                  "active-window-unavailable",
+                  "accessibility-service-unavailable",
+                  "observer-ipc-incomplete"
+                ]
               },
               "payload": {
                 "properties": {
                   "reasonCode": {
-                    "const": "snapshot-incomplete"
+                    "enum": [
+                      "snapshot-incomplete",
+                      "active-window-unavailable",
+                      "accessibility-service-unavailable",
+                      "observer-ipc-incomplete"
+                    ]
                   },
                   "snapshot": {
                     "type": "null"
@@ -2377,12 +2481,20 @@
                 "const": "STALE"
               },
               "reasonCode": {
-                "const": "snapshot-stale"
+                "enum": [
+                  "snapshot-stale",
+                  "snapshot-pre-dispatch",
+                  "observer-ipc-stale-or-pre-dispatch"
+                ]
               },
               "payload": {
                 "properties": {
                   "reasonCode": {
-                    "const": "snapshot-stale"
+                    "enum": [
+                      "snapshot-stale",
+                      "snapshot-pre-dispatch",
+                      "observer-ipc-stale-or-pre-dispatch"
+                    ]
                   },
                   "snapshot": {
                     "type": "null"
@@ -2413,12 +2525,20 @@
                 "const": "REFUSED"
               },
               "reasonCode": {
-                "const": "permission-unavailable"
+                "enum": [
+                  "permission-unavailable",
+                  "observer-permission-denied",
+                  "observer-service-lookup-denied"
+                ]
               },
               "payload": {
                 "properties": {
                   "reasonCode": {
-                    "const": "permission-unavailable"
+                    "enum": [
+                      "permission-unavailable",
+                      "observer-permission-denied",
+                      "observer-service-lookup-denied"
+                    ]
                   },
                   "snapshot": {
                     "type": "null"
@@ -2449,12 +2569,20 @@
                 "const": "REFUSED"
               },
               "reasonCode": {
-                "const": "observer-timeout"
+                "enum": [
+                  "observer-timeout",
+                  "observer-reply-timeout",
+                  "observer-wait-interrupted"
+                ]
               },
               "payload": {
                 "properties": {
                   "reasonCode": {
-                    "const": "observer-timeout"
+                    "enum": [
+                      "observer-timeout",
+                      "observer-reply-timeout",
+                      "observer-wait-interrupted"
+                    ]
                   },
                   "snapshot": {
                     "type": "null"
@@ -2485,12 +2613,16 @@
                 "const": "REFUSED"
               },
               "reasonCode": {
-                "const": "unsupported-evidence-profile"
+                "enum": [
+                  "unsupported-evidence-profile"
+                ]
               },
               "payload": {
                 "properties": {
                   "reasonCode": {
-                    "const": "unsupported-evidence-profile"
+                    "enum": [
+                      "unsupported-evidence-profile"
+                    ]
                   },
                   "snapshot": {
                     "type": "null"

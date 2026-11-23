@@ -56,6 +56,23 @@ class FastPathV1_1RuntimeTest {
         }
     }
 
+    @Test fun observerDiagnosticsRemainDistinctAndSchemaValid() {
+        val ports = object : V1_1RuntimePorts {
+            override val executionGateApproved = false
+            override val authorityAvailable = false
+            override val observerApproved = false
+            override fun capture(request: Map<String, Any?>) = CaptureResult("OBSERVER_UNAVAILABLE", "snapshot-package-mismatch")
+        }
+        val response = FastPathV1_1Runtime.dispatch(request("evidence.capture"), 1900000000000L, ports)
+        assertEquals("snapshot-package-mismatch", response["reasonCode"])
+        assertEquals("snapshot-package-mismatch", (response["payload"] as Map<*, *>)["reasonCode"])
+        FastPathV1_1Runtime.validateResponse(response)
+
+        val permission = AndroidV1_1RuntimePorts.refusalFor("observer-permission-denied")
+        assertEquals("PERMISSION_UNAVAILABLE", permission.outcome)
+        assertEquals("observer-permission-denied", permission.reason)
+    }
+
     @Test fun exactProfileAndOperationPairingAreMandatory() {
         val req = request("evidence.capture").toMutableMap().apply { put("protocolVersion", "tessera.fast-path/1") }
         assertThrows(IllegalArgumentException::class.java) { FastPathV1_1Runtime.dispatch(req, 1900000000000L) }
@@ -68,7 +85,7 @@ class FastPathV1_1RuntimeTest {
         val fixture = javaClass.classLoader!!.getResourceAsStream("fastpathv1/v1.1-evidence-response-vectors.json")!!
             .bufferedReader().use { it.readText() }
         val vectors = com.google.gson.JsonParser.parseString(fixture).asJsonObject.getAsJsonArray("vectors")
-        assertEquals(6, vectors.size())
+        assertEquals(8, vectors.size())
         vectors.forEach { item ->
             val vector = item.asJsonObject
             val request = jsonMap(vector.getAsJsonObject("request"))

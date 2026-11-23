@@ -70,17 +70,7 @@ internal object FastPathV1_1Runtime {
 
     private fun captureResponse(request: Map<String, Any?>, now: Long, capture: CaptureResult): Map<String, Any?> {
         val reason = capture.reason
-        val expectedReason = when (capture.outcome) {
-            "CAPTURED" -> "capture-complete"
-            "OBSERVER_UNAVAILABLE" -> "observer-unavailable"
-            "INCOMPLETE" -> "snapshot-incomplete"
-            "STALE" -> "snapshot-stale"
-            "PERMISSION_UNAVAILABLE" -> "permission-unavailable"
-            "TIMEOUT" -> "observer-timeout"
-            "UNSUPPORTED_PROFILE" -> "unsupported-evidence-profile"
-            else -> error("unsupported-capture-outcome")
-        }
-        require(reason == expectedReason) { "capture-reason-outcome-mismatch" }
+        require(captureOutcomeForReason(reason) == capture.outcome) { "capture-reason-outcome-mismatch" }
         if (capture.outcome == "CAPTURED") {
             require(capture.snapshot != null && capture.producer != null) { "capture-evidence-required" }
         } else require(capture.snapshot == null && capture.producer == null) { "failure-must-not-carry-evidence" }
@@ -92,6 +82,30 @@ internal object FastPathV1_1Runtime {
         return base(request, "evidence.capture.result", status, reason, now) + mapOf(
             "payload" to mapOf("captureOutcome" to capture.outcome, "reasonCode" to reason,
                 "snapshot" to capture.snapshot, "producer" to capture.producer))
+    }
+
+    private fun captureOutcomeForReason(reason: String): String = when (reason) {
+        "capture-complete" -> "CAPTURED"
+        "snapshot-incomplete", "active-window-unavailable", "accessibility-service-unavailable", "observer-ipc-incomplete" -> "INCOMPLETE"
+        "snapshot-stale", "snapshot-pre-dispatch", "observer-ipc-stale-or-pre-dispatch" -> "STALE"
+        "permission-unavailable", "observer-permission-denied", "observer-service-lookup-denied" -> "PERMISSION_UNAVAILABLE"
+        "observer-timeout", "observer-reply-timeout", "observer-wait-interrupted" -> "TIMEOUT"
+        "unsupported-evidence-profile" -> "UNSUPPORTED_PROFILE"
+        "observer-unavailable", "observer-service-unresolved", "observer-bind-rejected", "observer-bind-failed",
+        "observer-service-disconnected", "observer-binding-died", "observer-null-binding", "observer-null-binder",
+        "observer-send-failed", "observer-transport-failed", "observer-response-invalid", "observer-caller-invalid",
+        "observer-protocol-invalid", "observer-request-invalid", "observer-timebase-unavailable",
+        "observer-ipc-identity-mismatch", "observer-ipc-request-invalid", "observer-ipc-challenge-invalid",
+        "observer-ipc-timebase-invalid", "observer-ipc-protocol-invalid", "observer-ipc-package-missing",
+        "observer-ipc-window-missing", "observer-ipc-capture-time-missing", "observer-ipc-digest-missing",
+        "observer-ipc-correlation-mismatch", "observer-ipc-timebase-mismatch", "observer-ipc-refusal-code-missing",
+        "observer-ipc-refusal-code-invalid", "observer-ipc-refusal-carried-evidence", "observer-ipc-outcome-invalid",
+        "observer-ipc-window-mismatch", "observer-ipc-incomplete", "observer-ipc-digest-invalid",
+        "observer-ipc-package-mismatch", "observer-ipc-artifact-invalid", "observer-ipc-forged-verification",
+        "ipc-caller-invalid", "ipc-protocol-invalid", "ipc-correlation-invalid", "ipc-challenge-invalid",
+        "ipc-boundary-invalid", "ipc-timebase-mismatch", "ipc-timebase-unavailable", "ipc-challenge-replayed",
+        "snapshot-package-mismatch", "snapshot-window-mismatch", "snapshot-digest-invalid" -> "OBSERVER_UNAVAILABLE"
+        else -> error("unsupported-capture-reason")
     }
 
     private fun verifyUnavailable(request: Map<String, Any?>, now: Long): Map<String, Any?> =
@@ -162,17 +176,7 @@ internal object FastPathV1_1Runtime {
                 val p = value["payload"] as? Map<*, *> ?: error("capture-payload-invalid")
                 require(p.keys == setOf("captureOutcome", "reasonCode", "snapshot", "producer"))
                 require(p["reasonCode"] == value["reasonCode"])
-                val expectedReason = when (p["captureOutcome"]) {
-                    "CAPTURED" -> "capture-complete"
-                    "OBSERVER_UNAVAILABLE" -> "observer-unavailable"
-                    "INCOMPLETE" -> "snapshot-incomplete"
-                    "STALE" -> "snapshot-stale"
-                    "PERMISSION_UNAVAILABLE" -> "permission-unavailable"
-                    "TIMEOUT" -> "observer-timeout"
-                    "UNSUPPORTED_PROFILE" -> "unsupported-evidence-profile"
-                    else -> error("capture-outcome-invalid")
-                }
-                require(p["reasonCode"] == expectedReason)
+                require(captureOutcomeForReason(p["reasonCode"] as? String ?: "") == p["captureOutcome"])
                 if (p["captureOutcome"] == "CAPTURED") require(value["status"] == "ACCEPTED" && p["snapshot"] is Map<*, *> && p["producer"] is Map<*, *>)
                 else require(value["status"] == (if (p["captureOutcome"] == "STALE") "STALE" else "REFUSED") && p["snapshot"] == null && p["producer"] == null)
             }

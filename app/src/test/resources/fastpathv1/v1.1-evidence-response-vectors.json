@@ -282,6 +282,100 @@
           "producer": null
         }
       }
+    },
+    {
+      "id": "capture-package-mismatch",
+      "request": {
+        "protocolVersion": "tessera.fast-path/1.1",
+        "messageType": "evidence.capture",
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "taskId": "00000000-0000-4000-8000-000000000002",
+        "sessionId": "00000000-0000-4000-8000-000000000003",
+        "ownerId": "00000000-0000-4000-8000-000000000004",
+        "deviceBinding": {
+          "deviceSerial": "offline-test",
+          "companionPackage": "com.codexedge.glow",
+          "companionVersionCode": 18,
+          "signerCertificateSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "expiresAtEpochMs": 1900000000000,
+        "payload": {
+          "expectedPackage": "org.example.app",
+          "expectedWindowId": 1,
+          "maxAgeMs": 2500,
+          "maxNodes": 4096
+        }
+      },
+      "response": {
+        "protocolVersion": "tessera.fast-path/1.1",
+        "messageType": "evidence.capture.result",
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "taskId": "00000000-0000-4000-8000-000000000002",
+        "sessionId": "00000000-0000-4000-8000-000000000003",
+        "ownerId": "00000000-0000-4000-8000-000000000004",
+        "deviceBinding": {
+          "deviceSerial": "offline-test",
+          "companionPackage": "com.codexedge.glow",
+          "companionVersionCode": 18,
+          "signerCertificateSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "status": "REFUSED",
+        "reasonCode": "snapshot-package-mismatch",
+        "observedAtEpochMs": 1800000000000,
+        "payload": {
+          "captureOutcome": "OBSERVER_UNAVAILABLE",
+          "reasonCode": "snapshot-package-mismatch",
+          "snapshot": null,
+          "producer": null
+        }
+      }
+    },
+    {
+      "id": "capture-binding-permission-denied",
+      "request": {
+        "protocolVersion": "tessera.fast-path/1.1",
+        "messageType": "evidence.capture",
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "taskId": "00000000-0000-4000-8000-000000000002",
+        "sessionId": "00000000-0000-4000-8000-000000000003",
+        "ownerId": "00000000-0000-4000-8000-000000000004",
+        "deviceBinding": {
+          "deviceSerial": "offline-test",
+          "companionPackage": "com.codexedge.glow",
+          "companionVersionCode": 18,
+          "signerCertificateSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "expiresAtEpochMs": 1900000000000,
+        "payload": {
+          "expectedPackage": "org.example.app",
+          "expectedWindowId": 1,
+          "maxAgeMs": 2500,
+          "maxNodes": 4096
+        }
+      },
+      "response": {
+        "protocolVersion": "tessera.fast-path/1.1",
+        "messageType": "evidence.capture.result",
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "taskId": "00000000-0000-4000-8000-000000000002",
+        "sessionId": "00000000-0000-4000-8000-000000000003",
+        "ownerId": "00000000-0000-4000-8000-000000000004",
+        "deviceBinding": {
+          "deviceSerial": "offline-test",
+          "companionPackage": "com.codexedge.glow",
+          "companionVersionCode": 18,
+          "signerCertificateSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "status": "REFUSED",
+        "reasonCode": "observer-permission-denied",
+        "observedAtEpochMs": 1800000000000,
+        "payload": {
+          "captureOutcome": "PERMISSION_UNAVAILABLE",
+          "reasonCode": "observer-permission-denied",
+          "snapshot": null,
+          "producer": null
+        }
+      }
     }
   ]
 }

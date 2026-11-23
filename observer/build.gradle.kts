@@ -15,8 +15,8 @@ android {
         applicationId = "org.tessera.observer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-candidate"
+        versionCode = 2
+        versionName = "0.2.0-candidate-ipc-diagnostics"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
