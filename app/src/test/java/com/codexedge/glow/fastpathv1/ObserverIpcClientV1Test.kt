@@ -1,6 +1,5 @@
 package com.codexedge.glow.fastpathv1
 
-import android.app.Application
 import android.os.SystemClock
 import org.junit.Assert.*
 import org.junit.Test
@@ -25,7 +24,7 @@ class ObserverIpcClientV1Test {
                     "org.tessera.observer", "org.tessera.observer/2/" + "b".repeat(64), false),
                 10566, setOf("org.tessera.observer")))
         }
-        val client = ObserverIpcClientV1(RuntimeEnvironment.getApplication<Application>(), transport, { 10L })
+        val client = ObserverIpcClientV1(RuntimeEnvironment.getApplication(), transport, { 10L })
         val result = client.capture(requestId, executionId, "org.example.app", 7, dispatchElapsedMs = 0)
 
         assertTrue(exchanged)
@@ -45,7 +44,7 @@ class ObserverIpcClientV1Test {
                     "org.tessera.observer", "org.tessera.observer/2/" + "b".repeat(64), false),
                 10566, setOf("org.tessera.observer")))
         }
-        val result = ObserverIpcClientV1(RuntimeEnvironment.getApplication<Application>(), transport, { 10L })
+        val result = ObserverIpcClientV1(RuntimeEnvironment.getApplication(), transport, { 10L })
             .capture(requestId, executionId, "org.example.app", 7, 0)
 
         assertEquals(ObserverIpcClientV1.Result.Refused("snapshot-package-mismatch"), result)
@@ -57,7 +56,7 @@ class ObserverIpcClientV1Test {
     @Test fun permissionTimeoutAndBindingFailuresKeepDistinctReasonCodes() {
         val reasons = listOf("observer-permission-denied", "observer-reply-timeout", "observer-bind-rejected")
         reasons.forEach { reason ->
-            val client = ObserverIpcClientV1(RuntimeEnvironment.getApplication<Application>(),
+            val client = ObserverIpcClientV1(RuntimeEnvironment.getApplication(),
                 ObserverIpcTransportV1 { _, _ -> ObserverIpcTransportResultV1.Failure(reason) })
             val result = client.capture(requestId, executionId, "org.example.app", 7, 0)
             assertEquals(ObserverIpcClientV1.Result.Refused(reason), result)
