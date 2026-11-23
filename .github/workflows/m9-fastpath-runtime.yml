@@ -56,6 +56,7 @@ jobs:
         run: gradle --no-daemon :app:testDebugUnitTest :observer:testDebugUnitTest
       - name: Build Companion and independent observer candidates
         env:
+          TESSERA_SOURCE_COMMIT: ${{ github.sha }}
           CODEX_SIGNING_STORE_PASSWORD: ${{ secrets.CODEX_SIGNING_STORE_PASSWORD }}
           CODEX_SIGNING_KEY_ALIAS: ${{ secrets.CODEX_SIGNING_KEY_ALIAS }}
           CODEX_SIGNING_KEY_PASSWORD: ${{ secrets.CODEX_SIGNING_KEY_PASSWORD }}

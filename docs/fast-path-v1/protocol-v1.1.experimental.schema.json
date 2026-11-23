@@ -2035,19 +2035,24 @@
                       "items": {
                         "type": "object",
                         "additionalProperties": false,
-                        "required": [],
+                        "required": [
+                          "windowId",
+                          "parentIndex",
+                          "depth",
+                          "enabled",
+                          "clickable",
+                          "visible",
+                          "focusable",
+                          "selected",
+                          "checked",
+                          "password",
+                          "bounds"
+                        ],
                         "properties": {
-                          "text": {
-                            "type": "string",
-                            "maxLength": 1000
-                          },
-                          "description": {
-                            "type": "string",
-                            "maxLength": 1000
-                          },
                           "resourceId": {
                             "type": "string",
-                            "maxLength": 1000
+                            "maxLength": 256,
+                            "pattern": "^[A-Za-z0-9_.]+:id/[A-Za-z0-9_]+$"
                           },
                           "className": {
                             "type": "string",
@@ -2181,7 +2186,8 @@
                     },
                     "sha256": {
                       "type": "string",
-                      "pattern": "^[0-9a-f]{64}$"
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "SHA-256 over canonical packageName, windowId, and structural nodes (node identity, flags, and bounds); excludes timestamps and contains no UI text."
                     }
                   }
                 },
@@ -2197,7 +2203,10 @@
                   "additionalProperties": false,
                   "required": [
                     "producerId",
-                    "companionVersionCode",
+                    "producerPackage",
+                    "producerUid",
+                    "producerVersionName",
+                    "producerVersionCode",
                     "signerCertificateSha256",
                     "deviceSerial",
                     "taskId",
@@ -2208,11 +2217,21 @@
                   ],
                   "properties": {
                     "producerId": {
+                      "const": "org.tessera.observer.ReadOnlyAccessibilityObserverService"
+                    },
+                    "producerPackage": {
+                      "const": "org.tessera.observer"
+                    },
+                    "producerUid": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "producerVersionName": {
                       "type": "string",
                       "minLength": 1,
-                      "maxLength": 160
+                      "maxLength": 128
                     },
-                    "companionVersionCode": {
+                    "producerVersionCode": {
                       "type": "integer",
                       "minimum": 1
                     },
@@ -2239,8 +2258,7 @@
                     },
                     "sourceCommit": {
                       "type": "string",
-                      "minLength": 7,
-                      "maxLength": 64
+                      "pattern": "^[0-9a-f]{40}$"
                     },
                     "artifactSha256": {
                       "type": "string",
@@ -2277,7 +2295,20 @@
               "payload": {
                 "properties": {
                   "snapshot": {
-                    "type": "object"
+                    "type": "object",
+                    "properties": {
+                      "treeComplete": {
+                        "const": true
+                      },
+                      "truncated": {
+                        "const": false
+                      },
+                      "ageMs": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2500
+                      }
+                    }
                   },
                   "producer": {
                     "type": "object"
@@ -2351,7 +2382,10 @@
                   "ipc-challenge-replayed",
                   "snapshot-package-mismatch",
                   "snapshot-window-mismatch",
-                  "snapshot-digest-invalid"
+                  "snapshot-digest-invalid",
+                  "observer-ipc-artifact-mismatch",
+                  "observer-ipc-source-provenance-invalid",
+                  "observer-provenance-unavailable"
                 ]
               },
               "payload": {
@@ -2403,7 +2437,10 @@
                       "ipc-challenge-replayed",
                       "snapshot-package-mismatch",
                       "snapshot-window-mismatch",
-                      "snapshot-digest-invalid"
+                      "snapshot-digest-invalid",
+                      "observer-ipc-artifact-mismatch",
+                      "observer-ipc-source-provenance-invalid",
+                      "observer-provenance-unavailable"
                     ]
                   },
                   "snapshot": {
@@ -2439,7 +2476,27 @@
                   "snapshot-incomplete",
                   "active-window-unavailable",
                   "accessibility-service-unavailable",
-                  "observer-ipc-incomplete"
+                  "observer-ipc-incomplete",
+                  "snapshot-payload-too-large",
+                  "observer-ipc-snapshot-size-invalid",
+                  "observer-ipc-snapshot-invalid",
+                  "observer-ipc-snapshot-fields-invalid",
+                  "observer-ipc-snapshot-profile-invalid",
+                  "observer-ipc-snapshot-id-invalid",
+                  "observer-ipc-snapshot-identity-mismatch",
+                  "observer-ipc-snapshot-time-invalid",
+                  "observer-ipc-snapshot-incomplete",
+                  "observer-ipc-snapshot-node-count-invalid",
+                  "observer-ipc-node-invalid",
+                  "observer-ipc-node-fields-invalid",
+                  "observer-ipc-node-tree-invalid",
+                  "observer-ipc-node-flag-invalid",
+                  "observer-ipc-node-bounds-invalid",
+                  "observer-ipc-node-resource-invalid",
+                  "observer-ipc-node-class-invalid",
+                  "observer-ipc-traversal-invalid",
+                  "observer-ipc-snapshot-digest-mismatch",
+                  "observer-ipc-snapshot-missing"
                 ]
               },
               "payload": {
@@ -2449,7 +2506,27 @@
                       "snapshot-incomplete",
                       "active-window-unavailable",
                       "accessibility-service-unavailable",
-                      "observer-ipc-incomplete"
+                      "observer-ipc-incomplete",
+                      "snapshot-payload-too-large",
+                      "observer-ipc-snapshot-size-invalid",
+                      "observer-ipc-snapshot-invalid",
+                      "observer-ipc-snapshot-fields-invalid",
+                      "observer-ipc-snapshot-profile-invalid",
+                      "observer-ipc-snapshot-id-invalid",
+                      "observer-ipc-snapshot-identity-mismatch",
+                      "observer-ipc-snapshot-time-invalid",
+                      "observer-ipc-snapshot-incomplete",
+                      "observer-ipc-snapshot-node-count-invalid",
+                      "observer-ipc-node-invalid",
+                      "observer-ipc-node-fields-invalid",
+                      "observer-ipc-node-tree-invalid",
+                      "observer-ipc-node-flag-invalid",
+                      "observer-ipc-node-bounds-invalid",
+                      "observer-ipc-node-resource-invalid",
+                      "observer-ipc-node-class-invalid",
+                      "observer-ipc-traversal-invalid",
+                      "observer-ipc-snapshot-digest-mismatch",
+                      "observer-ipc-snapshot-missing"
                     ]
                   },
                   "snapshot": {
@@ -2484,7 +2561,8 @@
                 "enum": [
                   "snapshot-stale",
                   "snapshot-pre-dispatch",
-                  "observer-ipc-stale-or-pre-dispatch"
+                  "observer-ipc-stale-or-pre-dispatch",
+                  "observer-ipc-snapshot-stale"
                 ]
               },
               "payload": {
@@ -2493,7 +2571,8 @@
                     "enum": [
                       "snapshot-stale",
                       "snapshot-pre-dispatch",
-                      "observer-ipc-stale-or-pre-dispatch"
+                      "observer-ipc-stale-or-pre-dispatch",
+                      "observer-ipc-snapshot-stale"
                     ]
                   },
                   "snapshot": {

@@ -73,6 +73,7 @@ internal object FastPathV1_1Runtime {
         require(captureOutcomeForReason(reason) == capture.outcome) { "capture-reason-outcome-mismatch" }
         if (capture.outcome == "CAPTURED") {
             require(capture.snapshot != null && capture.producer != null) { "capture-evidence-required" }
+            validateCaptureEvidence(request, capture.snapshot, capture.producer)
         } else require(capture.snapshot == null && capture.producer == null) { "failure-must-not-carry-evidence" }
         val status = when (capture.outcome) {
             "CAPTURED" -> "ACCEPTED"
@@ -84,10 +85,46 @@ internal object FastPathV1_1Runtime {
                 "snapshot" to capture.snapshot, "producer" to capture.producer))
     }
 
+    private fun validateCaptureEvidence(request: Map<String, Any?>, snapshot: Map<String, Any?>, producer: Map<String, Any?>) {
+        require(snapshot.keys == setOf("schema", "snapshotId", "packageName", "source", "windowId", "windowIdBefore",
+            "windowIdAfter", "capturedAtEpochMs", "capturedAtElapsedRealtimeMs", "ageMs", "treeComplete", "truncated",
+            "nodes", "traversal", "sha256")) { "capture-snapshot-fields-invalid" }
+        require(snapshot["schema"] == 3L && snapshot["source"] == "accessibility" && snapshot["treeComplete"] == true &&
+            snapshot["truncated"] == false && snapshot["packageName"] == (request["payload"] as Map<*, *>)["expectedPackage"] &&
+            snapshot["windowId"] == (request["payload"] as Map<*, *>)["expectedWindowId"] &&
+            snapshot["windowIdBefore"] == snapshot["windowId"] && snapshot["windowIdAfter"] == snapshot["windowId"] &&
+            (snapshot["nodes"] as? List<*>)?.let { it.isNotEmpty() && it.size <= 4096 } == true &&
+            (snapshot["ageMs"] as? Number)?.toLong()?.let { it in 0..((request["payload"] as Map<*, *>)["maxAgeMs"] as Long) } == true &&
+            (snapshot["sha256"] as? String)?.let { Regex("[0-9a-f]{64}").matches(it) } == true) {
+            "capture-snapshot-invalid"
+        }
+        require(producer.keys == setOf("producerId", "producerPackage", "producerUid", "producerVersionName",
+            "producerVersionCode", "signerCertificateSha256", "deviceSerial", "taskId", "sessionId", "snapshotId",
+            "sourceCommit", "artifactSha256") && producer["producerId"] == "org.tessera.observer.ReadOnlyAccessibilityObserverService" &&
+            producer["producerPackage"] == "org.tessera.observer" && producer["snapshotId"] == snapshot["snapshotId"] &&
+            producer["taskId"] == request["taskId"] && producer["sessionId"] == request["sessionId"] &&
+            producer["deviceSerial"] == ((request["deviceBinding"] as Map<*, *>)["deviceSerial"]) &&
+            producer["signerCertificateSha256"] == ObserverIpcClientV1.EXPECTED_SIGNER_SHA256 &&
+            (producer["producerUid"] as? Number)?.toLong()?.let { it > 0 } == true &&
+            (producer["producerVersionCode"] as? Number)?.toLong()?.let { it > 0 } == true &&
+            (producer["producerVersionName"] as? String)?.isNotBlank() == true &&
+            (producer["sourceCommit"] as? String)?.matches(Regex("[0-9a-f]{40}")) == true &&
+            (producer["artifactSha256"] as? String)?.matches(Regex("[0-9a-f]{64}")) == true) {
+            "capture-producer-invalid"
+        }
+    }
+
     private fun captureOutcomeForReason(reason: String): String = when (reason) {
         "capture-complete" -> "CAPTURED"
-        "snapshot-incomplete", "active-window-unavailable", "accessibility-service-unavailable", "observer-ipc-incomplete" -> "INCOMPLETE"
-        "snapshot-stale", "snapshot-pre-dispatch", "observer-ipc-stale-or-pre-dispatch" -> "STALE"
+        "snapshot-incomplete", "snapshot-payload-too-large", "active-window-unavailable", "accessibility-service-unavailable",
+        "observer-ipc-incomplete", "observer-ipc-snapshot-missing", "observer-ipc-snapshot-size-invalid",
+        "observer-ipc-snapshot-invalid", "observer-ipc-snapshot-fields-invalid", "observer-ipc-snapshot-profile-invalid",
+        "observer-ipc-snapshot-id-invalid", "observer-ipc-snapshot-identity-mismatch", "observer-ipc-snapshot-time-invalid",
+        "observer-ipc-snapshot-incomplete", "observer-ipc-snapshot-node-count-invalid", "observer-ipc-node-invalid",
+        "observer-ipc-node-fields-invalid", "observer-ipc-node-tree-invalid", "observer-ipc-node-flag-invalid",
+        "observer-ipc-node-bounds-invalid", "observer-ipc-node-resource-invalid", "observer-ipc-node-class-invalid",
+        "observer-ipc-traversal-invalid", "observer-ipc-snapshot-digest-mismatch" -> "INCOMPLETE"
+        "snapshot-stale", "snapshot-pre-dispatch", "observer-ipc-stale-or-pre-dispatch", "observer-ipc-snapshot-stale" -> "STALE"
         "permission-unavailable", "observer-permission-denied", "observer-service-lookup-denied" -> "PERMISSION_UNAVAILABLE"
         "observer-timeout", "observer-reply-timeout", "observer-wait-interrupted" -> "TIMEOUT"
         "unsupported-evidence-profile" -> "UNSUPPORTED_PROFILE"
@@ -96,6 +133,7 @@ internal object FastPathV1_1Runtime {
         "observer-send-failed", "observer-transport-failed", "observer-response-invalid", "observer-caller-invalid",
         "observer-protocol-invalid", "observer-request-invalid", "observer-timebase-unavailable",
         "observer-ipc-identity-mismatch", "observer-ipc-request-invalid", "observer-ipc-challenge-invalid",
+        "observer-ipc-artifact-mismatch", "observer-ipc-source-provenance-invalid", "observer-provenance-unavailable",
         "observer-ipc-timebase-invalid", "observer-ipc-protocol-invalid", "observer-ipc-package-missing",
         "observer-ipc-window-missing", "observer-ipc-capture-time-missing", "observer-ipc-digest-missing",
         "observer-ipc-correlation-mismatch", "observer-ipc-timebase-mismatch", "observer-ipc-refusal-code-missing",

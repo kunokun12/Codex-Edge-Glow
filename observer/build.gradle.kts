@@ -7,6 +7,7 @@ val signingPath = System.getenv("CODEX_SIGNING_KEYSTORE_PATH")
 val signingStorePassword = System.getenv("CODEX_SIGNING_STORE_PASSWORD")
 val signingKeyAlias = System.getenv("CODEX_SIGNING_KEY_ALIAS")
 val signingKeyPassword = System.getenv("CODEX_SIGNING_KEY_PASSWORD")
+val sourceCommit = System.getenv("TESSERA_SOURCE_COMMIT")?.takeIf { it.matches(Regex("[0-9a-f]{40}")) } ?: "unknown"
 
 android {
     namespace = "org.tessera.observer"
@@ -15,10 +16,12 @@ android {
         applicationId = "org.tessera.observer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0-candidate-ipc-diagnostics"
+        versionCode = 3
+        versionName = "0.3.0-schema3-evidence"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "TESSERA_SOURCE_COMMIT", "\"$sourceCommit\"")
     }
+    buildFeatures { buildConfig = true }
     signingConfigs {
         getByName("debug") {
             if (!signingPath.isNullOrBlank()) {

@@ -33,6 +33,8 @@ class ObserverIpcService : Service() {
                 executionId = data.getString("executionId") ?: error("ipc-execution-id-missing"),
                 expectedPackage = data.getString("expectedPackage") ?: error("ipc-package-missing"),
                 expectedWindowId = data.getInt("expectedWindowId", -1),
+                maxAgeMs = data.getLong("maxAgeMs", -1L),
+                maxNodes = data.getInt("maxNodes", -1),
                 dispatchElapsedRealtimeMs = data.getLong("dispatchElapsedRealtimeMs", -1L),
                 bootTimebaseId = data.getString("bootTimebaseId") ?: error("ipc-timebase-missing")
             )
@@ -44,19 +46,19 @@ class ObserverIpcService : Service() {
             if (callerUid <= 0 || callerPackages != setOf(COMPANION_PACKAGE)) {
                 policy.respond(request, callerUid, callerPackages,
                     ObserverSnapshotResult.Refused("ipc-caller-invalid"), SystemClock.elapsedRealtime(),
-                    currentBoot, artifactIdentity())
+                    currentBoot, artifact())
             } else {
-            val snapshot = ReadOnlyAccessibilityObserverService.captureForRequest(
-                request.expectedPackage, request.expectedWindowId, request.dispatchElapsedRealtimeMs)
-            policy.respond(request, callerUid, callerPackages, snapshot, SystemClock.elapsedRealtime(),
-                currentBoot, artifactIdentity())
+                val snapshot = ReadOnlyAccessibilityObserverService.captureForRequest(
+                    request.expectedPackage, request.expectedWindowId, request.dispatchElapsedRealtimeMs, request.maxNodes)
+                policy.respond(request, callerUid, callerPackages, snapshot, SystemClock.elapsedRealtime(),
+                    currentBoot, artifact())
             }
         } catch (failure: Exception) {
             val reason = failure.message?.takeIf { it.matches(REASON_REGEX) } ?: "ipc-request-invalid"
             parsed?.let { request ->
                 // A well-formed caller receives a correlated, machine-readable refusal.
                 if (callerUid > 0 && callerPackages == setOf(COMPANION_PACKAGE))
-                    refused(request, reason, artifactIdentity())
+                    refused(request, reason, artifact())
                 else refusedUncorrelated(reason)
             } ?: refusedUncorrelated(reason)
         }
@@ -79,39 +81,61 @@ class ObserverIpcService : Service() {
         putLong("capturedElapsedRealtimeMs", capturedElapsedRealtimeMs ?: -1L)
         putLong("observerElapsedRealtimeMs", observerElapsedRealtimeMs)
         putString("evidenceDigest", evidenceDigest)
+        putString("snapshotJson", snapshotJson)
         putString("observerPackage", observerPackage)
         putString("observerArtifactIdentity", observerArtifactIdentity)
+        putString("observerVersionName", observerVersionName)
+        putLong("observerVersionCode", observerVersionCode)
+        putString("observerSignerSha256", observerSignerSha256)
+        putString("observerArtifactSha256", observerArtifactSha256)
+        putString("observerSourceCommit", observerSourceCommit)
         putBoolean("complete", complete)
         putBoolean("verified", verified)
     }
 
-    private fun refused(request: ObserverIpcRequestV1, reason: String, identity: String) = ObserverIpcResponseV1(
+    private fun refused(request: ObserverIpcRequestV1, reason: String, artifact: ObserverArtifactV1) = ObserverIpcResponseV1(
         protocol = ObserverIpcPolicy.PROTOCOL, outcome = "REFUSED", reasonCode = reason,
         requestId = request.requestId, executionId = request.executionId, challenge = request.challenge,
         bootTimebaseId = request.bootTimebaseId, packageName = null, windowId = null,
         capturedElapsedRealtimeMs = null, observerElapsedRealtimeMs = SystemClock.elapsedRealtime(),
-        evidenceDigest = null, observerPackage = packageName, observerArtifactIdentity = identity,
-        complete = false)
+        evidenceDigest = null, snapshotJson = null, observerPackage = packageName,
+        observerArtifactIdentity = artifact.identity, observerVersionName = artifact.versionName,
+        observerVersionCode = artifact.versionCode, observerSignerSha256 = artifact.signerSha256,
+        observerArtifactSha256 = artifact.apkSha256, observerSourceCommit = artifact.sourceCommit, complete = false)
 
-    private fun refusedUncorrelated(reason: String) = ObserverIpcResponseV1(
-        protocol = ObserverIpcPolicy.PROTOCOL, outcome = "REFUSED", reasonCode = reason,
-        requestId = "", executionId = "", challenge = "", bootTimebaseId = "",
-        packageName = null, windowId = null, capturedElapsedRealtimeMs = null,
-        observerElapsedRealtimeMs = SystemClock.elapsedRealtime(), evidenceDigest = null,
-        observerPackage = packageName, observerArtifactIdentity = artifactIdentity(), complete = false)
+    private fun refusedUncorrelated(reason: String): ObserverIpcResponseV1 {
+        val artifact = artifact()
+        return ObserverIpcResponseV1(
+            protocol = ObserverIpcPolicy.PROTOCOL, outcome = "REFUSED", reasonCode = reason,
+            requestId = "", executionId = "", challenge = "", bootTimebaseId = "",
+            packageName = null, windowId = null, capturedElapsedRealtimeMs = null,
+            observerElapsedRealtimeMs = SystemClock.elapsedRealtime(), evidenceDigest = null, snapshotJson = null,
+            observerPackage = packageName, observerArtifactIdentity = artifact.identity,
+            observerVersionName = artifact.versionName, observerVersionCode = artifact.versionCode,
+            observerSignerSha256 = artifact.signerSha256, observerArtifactSha256 = artifact.apkSha256,
+            observerSourceCommit = artifact.sourceCommit, complete = false)
+    }
 
     @Suppress("DEPRECATION")
-    private fun artifactIdentity(): String = runCatching {
+    private fun artifact(): ObserverArtifactV1 = runCatching {
         val info = if (Build.VERSION.SDK_INT >= 28)
             packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
         else packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
         val signatures = if (Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures
-        val certDigest = signatures.orEmpty().firstOrNull()?.toByteArray()?.let {
-            MessageDigest.getInstance("SHA-256").digest(it).joinToString("") { b -> "%02x".format(b) }
-        } ?: "unknown"
+        val certDigest = signatures.orEmpty().firstOrNull()?.toByteArray()?.let(::sha256) ?: "unknown"
         val versionCode = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-        "$packageName/$versionCode/$certDigest"
-    }.getOrDefault("$packageName/0/unknown")
+        val apkSha = java.io.File(applicationInfo.sourceDir).inputStream().use { stream ->
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            val buffer = ByteArray(8192)
+            while (true) { val count = stream.read(buffer); if (count < 0) break; digest.update(buffer, 0, count) }
+            digest.digest().joinToString("") { b -> "%02x".format(b) }
+        }
+        ObserverArtifactV1("$packageName/$versionCode/$certDigest", info.versionName ?: "",
+            versionCode, certDigest, apkSha, BuildConfig.TESSERA_SOURCE_COMMIT)
+    }.getOrElse { ObserverArtifactV1("$packageName/0/unknown", "", 0, "", "", "") }
+
+    private fun sha256(bytes: ByteArray): String = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(bytes).joinToString("") { b -> "%02x".format(b) }
 
     private fun bootTimebaseId(): String? = runCatching {
         java.io.File("/proc/sys/kernel/random/boot_id").readText().trim()
@@ -123,6 +147,6 @@ class ObserverIpcService : Service() {
         private const val MSG_EVIDENCE = 1
         private val REASON_REGEX = Regex("[a-z][a-z0-9-]{0,63}")
         private val BOOT_ID_REGEX = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-        private val REQUEST_KEYS = setOf("protocol", "challenge", "requestId", "executionId", "expectedPackage", "expectedWindowId", "dispatchElapsedRealtimeMs", "bootTimebaseId")
+        private val REQUEST_KEYS = setOf("protocol", "challenge", "requestId", "executionId", "expectedPackage", "expectedWindowId", "maxAgeMs", "maxNodes", "dispatchElapsedRealtimeMs", "bootTimebaseId")
     }
 }

@@ -376,6 +376,117 @@
           "producer": null
         }
       }
+    },
+    {
+      "id": "capture-complete-observer-schema3",
+      "request": {
+        "protocolVersion": "tessera.fast-path/1.1",
+        "messageType": "evidence.capture",
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "taskId": "00000000-0000-4000-8000-000000000002",
+        "sessionId": "00000000-0000-4000-8000-000000000003",
+        "ownerId": "00000000-0000-4000-8000-000000000004",
+        "deviceBinding": {
+          "deviceSerial": "offline-test",
+          "companionPackage": "com.codexedge.glow",
+          "companionVersionCode": 18,
+          "signerCertificateSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "expiresAtEpochMs": 1900000000000,
+        "payload": {
+          "expectedPackage": "org.example.app",
+          "expectedWindowId": 1,
+          "maxAgeMs": 2500,
+          "maxNodes": 4096
+        }
+      },
+      "response": {
+        "protocolVersion": "tessera.fast-path/1.1",
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "taskId": "00000000-0000-4000-8000-000000000002",
+        "sessionId": "00000000-0000-4000-8000-000000000003",
+        "ownerId": "00000000-0000-4000-8000-000000000004",
+        "deviceBinding": {
+          "deviceSerial": "offline-test",
+          "companionPackage": "com.codexedge.glow",
+          "companionVersionCode": 18,
+          "signerCertificateSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "messageType": "evidence.capture.result",
+        "status": "ACCEPTED",
+        "reasonCode": "capture-complete",
+        "observedAtEpochMs": 1800000000000,
+        "payload": {
+          "captureOutcome": "CAPTURED",
+          "reasonCode": "capture-complete",
+          "snapshot": {
+            "schema": 3,
+            "snapshotId": "00000000-0000-4000-8000-000000000010",
+            "packageName": "org.example.app",
+            "source": "accessibility",
+            "windowId": 1,
+            "windowIdBefore": 1,
+            "windowIdAfter": 1,
+            "capturedAtEpochMs": 1800000000000,
+            "capturedAtElapsedRealtimeMs": 101,
+            "ageMs": 2,
+            "treeComplete": true,
+            "truncated": false,
+            "nodes": [
+              {
+                "windowId": 1,
+                "parentIndex": -1,
+                "depth": 0,
+                "enabled": true,
+                "clickable": false,
+                "visible": true,
+                "focusable": false,
+                "selected": false,
+                "checked": false,
+                "password": false,
+                "bounds": [
+                  0,
+                  0,
+                  1080,
+                  2400
+                ],
+                "resourceId": "org.example.app:id/root",
+                "className": "android.view.View"
+              }
+            ],
+            "traversal": {
+              "rootCount": 1,
+              "visitedNodeCount": 1,
+              "maxDepth": 64,
+              "nodeTraversalLimit": 4096,
+              "timeBudgetMs": 250,
+              "durationMs": 3,
+              "timeBudgetExceeded": false,
+              "truncationReason": null,
+              "traversalError": null,
+              "collectionSuccess": true,
+              "windowStable": true,
+              "windowIdBefore": 1,
+              "windowIdAfter": 1
+            },
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "producer": {
+            "producerId": "org.tessera.observer.ReadOnlyAccessibilityObserverService",
+            "producerPackage": "org.tessera.observer",
+            "producerUid": 10566,
+            "producerVersionName": "0.3.0-schema3-evidence",
+            "producerVersionCode": 3,
+            "signerCertificateSha256": "37d7923bc149506e0d5fbed5298fb4456bf176f79634170f1b74a5241f3b68eb",
+            "deviceSerial": "offline-test",
+            "taskId": "00000000-0000-4000-8000-000000000002",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "snapshotId": "00000000-0000-4000-8000-000000000010",
+            "sourceCommit": "0000000000000000000000000000000000000000",
+            "artifactSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      }
     }
   ]
 }
