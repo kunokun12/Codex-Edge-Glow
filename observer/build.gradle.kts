@@ -1,5 +1,13 @@
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 
+// CI supplies the same persistent identity used by Companion. Local builds may
+// use Android's normal debug key, but release/test artifacts are pinned and
+// verified by the signing workflows before upload.
+val signingPath = System.getenv("CODEX_SIGNING_KEYSTORE_PATH")
+val signingStorePassword = System.getenv("CODEX_SIGNING_STORE_PASSWORD")
+val signingKeyAlias = System.getenv("CODEX_SIGNING_KEY_ALIAS")
+val signingKeyPassword = System.getenv("CODEX_SIGNING_KEY_PASSWORD")
+
 android {
     namespace = "org.tessera.observer"
     compileSdk = 35
@@ -10,6 +18,19 @@ android {
         versionCode = 1
         versionName = "0.1.0-candidate"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    signingConfigs {
+        getByName("debug") {
+            if (!signingPath.isNullOrBlank()) {
+                storeFile = file(signingPath)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        getByName("debug") { signingConfig = signingConfigs.getByName("debug") }
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }

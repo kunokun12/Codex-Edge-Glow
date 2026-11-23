@@ -11,6 +11,7 @@ on:
       - 'app/src/test/resources/fastpathv1/**'
       - 'settings.gradle.kts'
       - 'build.gradle.kts'
+      - '.github/scripts/**'
       - '.github/workflows/m9-fastpath-runtime.yml'
 
 permissions:
@@ -43,29 +44,31 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Validate persistent signing key and installed certificate pin
+        shell: bash
+        env:
+          CODEX_SIGNING_KEYSTORE_BASE64: ${{ secrets.CODEX_SIGNING_KEYSTORE_BASE64 }}
+          CODEX_SIGNING_STORE_PASSWORD: ${{ secrets.CODEX_SIGNING_STORE_PASSWORD }}
+          CODEX_SIGNING_KEY_ALIAS: ${{ secrets.CODEX_SIGNING_KEY_ALIAS }}
+          CODEX_SIGNING_KEY_PASSWORD: ${{ secrets.CODEX_SIGNING_KEY_PASSWORD }}
+        run: bash .github/scripts/prepare-persistent-signing.sh
       - name: Kotlin unit tests
         run: gradle --no-daemon :app:testDebugUnitTest :observer:testDebugUnitTest
       - name: Build Companion and independent observer candidates
+        env:
+          CODEX_SIGNING_STORE_PASSWORD: ${{ secrets.CODEX_SIGNING_STORE_PASSWORD }}
+          CODEX_SIGNING_KEY_ALIAS: ${{ secrets.CODEX_SIGNING_KEY_ALIAS }}
+          CODEX_SIGNING_KEY_PASSWORD: ${{ secrets.CODEX_SIGNING_KEY_PASSWORD }}
         run: gradle --no-daemon :app:assembleDebug :observer:assembleDebug
-      - name: Record candidate artifact provenance
+      - name: Verify package identities, signer, UID separation, and observer IPC
         shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p build-provenance
-          for entry in "companion:app:app/build/outputs/apk/debug/app-debug.apk" "observer:observer:observer/build/outputs/apk/debug/observer-debug.apk"; do
-            IFS=: read -r label module path <<< "$entry"
-            test -s "$path"
-            {
-              echo "source_commit=$(git rev-parse HEAD)"
-              echo "source_branch=${GITHUB_REF_NAME}"
-              echo "artifact=$label"
-              echo "apk_sha256=$(sha256sum "$path" | cut -d' ' -f1)"
-              "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$path" | grep 'Signer #1 certificate SHA-256 digest:'
-            } > "build-provenance/$label.txt"
-          done
+        run: bash .github/scripts/verify-candidate-apks.sh
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/codex-companion-signing.p12" "$RUNNER_TEMP/codex-companion-signing.der"
       - uses: actions/upload-artifact@v4
         with:
-          name: fastpath-v1-m9-candidate-apks-and-reports
+          name: fastpath-v1-m9-persistently-signed-apks-and-reports
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             observer/build/outputs/apk/debug/observer-debug.apk
