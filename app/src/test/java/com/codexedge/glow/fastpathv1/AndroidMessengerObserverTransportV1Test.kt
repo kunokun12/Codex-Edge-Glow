@@ -190,10 +190,10 @@ class AndroidMessengerObserverTransportV1Test {
     }
 
     private data class FakeBinder(
-        val bindBlock: (Intent, ServiceConnection, Int) -> Boolean,
         var intent: Intent? = null,
         var flags: Int = -1,
-        var unbindCount: Int = 0
+        var unbindCount: Int = 0,
+        val bindBlock: (Intent, ServiceConnection, Int) -> Boolean
     ) : ObserverServiceBinderV1 {
         override fun bind(intent: Intent, connection: ServiceConnection, flags: Int): Boolean {
             this.intent = intent
