@@ -108,28 +108,28 @@ internal class ObserverIpcClientV1(
         internal const val EXPECTED_SIGNER_SHA256 = "37d7923bc149506e0d5fbed5298fb4456bf176f79634170f1b74a5241f3b68eb"
         private val BOOT_ID_REGEX = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
         private val REASON_REGEX = Regex("[a-z][a-z0-9-]{0,63}")
+
+        @Suppress("DEPRECATION")
+        private fun installedObserverIdentity(context: Context): ObserverInstalledIdentityV1? = runCatching {
+            val info = if (android.os.Build.VERSION.SDK_INT >= 28)
+                context.packageManager.getPackageInfo(OBSERVER_PACKAGE, PackageManager.GET_SIGNING_CERTIFICATES)
+            else context.packageManager.getPackageInfo(OBSERVER_PACKAGE, PackageManager.GET_SIGNATURES)
+            val signer = (if (android.os.Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures)
+                ?.firstOrNull()?.toByteArray()?.let { sha256(it) } ?: return null
+            val appInfo = context.packageManager.getApplicationInfo(OBSERVER_PACKAGE, 0)
+            val apkDigest = java.io.File(appInfo.sourceDir).inputStream().use { stream ->
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                val buffer = ByteArray(8192)
+                while (true) { val count = stream.read(buffer); if (count < 0) break; digest.update(buffer, 0, count) }
+                digest.digest().joinToString("") { b -> "%02x".format(b) }
+            }
+            val version = if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+            ObserverInstalledIdentityV1(appInfo.uid, version, info.versionName ?: "", signer, apkDigest)
+        }.getOrNull()
+
+        private fun sha256(bytes: ByteArray): String = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(bytes).joinToString("") { b -> "%02x".format(b) }
     }
-
-    @Suppress("DEPRECATION")
-    private fun installedObserverIdentity(context: Context): ObserverInstalledIdentityV1? = runCatching {
-        val info = if (android.os.Build.VERSION.SDK_INT >= 28)
-            context.packageManager.getPackageInfo(OBSERVER_PACKAGE, PackageManager.GET_SIGNING_CERTIFICATES)
-        else context.packageManager.getPackageInfo(OBSERVER_PACKAGE, PackageManager.GET_SIGNATURES)
-        val signer = (if (android.os.Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else info.signatures)
-            ?.firstOrNull()?.toByteArray()?.let { sha256(it) } ?: return null
-        val appInfo = context.packageManager.getApplicationInfo(OBSERVER_PACKAGE, 0)
-        val apkDigest = java.io.File(appInfo.sourceDir).inputStream().use { stream ->
-            val digest = java.security.MessageDigest.getInstance("SHA-256")
-            val buffer = ByteArray(8192)
-            while (true) { val count = stream.read(buffer); if (count < 0) break; digest.update(buffer, 0, count) }
-            digest.digest().joinToString("") { b -> "%02x".format(b) }
-        }
-        val version = if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
-        ObserverInstalledIdentityV1(appInfo.uid, version, info.versionName ?: "", signer, apkDigest)
-    }.getOrNull()
-
-    private fun sha256(bytes: ByteArray): String = java.security.MessageDigest.getInstance("SHA-256")
-        .digest(bytes).joinToString("") { b -> "%02x".format(b) }
 }
 
 /** Android Messenger binding adapter with explicit lifecycle and permission failure results. */

@@ -58,16 +58,16 @@ internal class ObserverIpcPolicy(private val capacity: Int = 4096) {
                     !value.complete || value.nodes.isEmpty() || value.nodes.size > request.maxNodes -> refused("snapshot-incomplete")
                     value.packageName != request.expectedPackage -> refused("snapshot-package-mismatch")
                     value.windowId != request.expectedWindowId -> refused("snapshot-window-mismatch")
-                    value.capturedAtElapsedRealtimeMs <= request.dispatchElapsedRealtimeMs -> refused("snapshot-pre-dispatch")
-                    nowElapsedMs < value.capturedAtElapsedRealtimeMs ||
-                        nowElapsedMs - value.capturedAtElapsedRealtimeMs > request.maxAgeMs -> refused("snapshot-stale")
+                    value.capturedElapsedRealtimeMs <= request.dispatchElapsedRealtimeMs -> refused("snapshot-pre-dispatch")
+                    nowElapsedMs < value.capturedElapsedRealtimeMs ||
+                        nowElapsedMs - value.capturedElapsedRealtimeMs > request.maxAgeMs -> refused("snapshot-stale")
                     !DIGEST_REGEX.matches(value.digest) -> refused("snapshot-digest-invalid")
                     value.json.isBlank() || value.json.toByteArray(Charsets.UTF_8).size > MAX_SNAPSHOT_BYTES -> refused("snapshot-payload-too-large")
                     else -> ObserverIpcResponseV1(
                         protocol = PROTOCOL, outcome = "CANDIDATE_EVIDENCE", reasonCode = null,
                         requestId = request.requestId, executionId = request.executionId, challenge = request.challenge,
                         bootTimebaseId = request.bootTimebaseId, packageName = value.packageName,
-                        windowId = value.windowId, capturedElapsedRealtimeMs = value.capturedAtElapsedRealtimeMs,
+                        windowId = value.windowId, capturedElapsedRealtimeMs = value.capturedElapsedRealtimeMs,
                         observerElapsedRealtimeMs = nowElapsedMs, evidenceDigest = value.digest, snapshotJson = value.json,
                         observerPackage = OBSERVER_PACKAGE, observerArtifactIdentity = artifact.identity,
                         observerVersionName = artifact.versionName, observerVersionCode = artifact.versionCode,
